@@ -153,10 +153,6 @@ Average Performance:
 ## License
 MIT
 ```
-
-#### 1.3 Add a License File
-Create a `LICENSE` file with the MIT license (or your preferred license):
-```plaintext
 MIT License
 
 Copyright (c) 2025 Your Name
