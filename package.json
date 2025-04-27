@@ -40,5 +40,19 @@
     "ts-node": "^10.9.2",
     "tslib": "^2.8.1",
     "typescript": "^5.8.2"
-  }
+  },
+  "funding": [
+    {
+      "type": "individual",
+      "url": "https://www.paypal.com/paypalme/jairajjangle001/usd"
+    },
+    {
+      "type": "individual",
+      "url": "https://liberapay.com/FutureJJ/donate"
+    },
+    {
+      "type": "individual",
+      "url": "https://ko-fi.com/futurejj"
+    }
+  ]
 }
