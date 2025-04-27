@@ -1,6 +1,6 @@
 # fast-is-equal
 
-Blazing-fast equality checks, minus the baggage. A lean, standalone alternative to Lodash’s `isEqual`—because speed matters.
+Blazing-fast equality checks, minus the baggage. A lean, standalone alternative to Lodash’s `isEqual` - because speed matters.
 
 [![npm version](https://img.shields.io/npm/v/fast-is-equal)](https://badge.fury.io/js/fast-is-equal)
 
