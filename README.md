@@ -38,33 +38,32 @@ console.log(fastIsEqual([1, 2], [1, 3])); // false
 
 `fast-is-equal` outperforms Lodash's `isEqual` in most cases. Run `npm run benchmark` locally to compare:
 
-| Test Case                     | fastIsEqual (ms) | Lodash isEqual (ms) | Performance Gain  |
-| ----------------------------- | ---------------- | ------------------- | ----------------- |
-| Numbers                       | 0.000003         | 0.000006            | **1.67x faster**  |
-| Strings                       | 0.000005         | 0.000005            | **1.08x faster**  |
-| Booleans                      | 0.000005         | 0.000005            | **1.07x faster**  |
-| NaN                           | 0.000006         | 0.000012            | **1.96x faster**  |
-| Simple Object (equal)         | 0.000098         | 0.000272            | **2.78x faster**  |
-| Simple Object (unequal)       | 0.000105         | 0.000275            | **2.63x faster**  |
-| Nested Object (equal)         | 0.000199         | 0.000846            | **4.26x faster**  |
-| Nested Object (unequal)       | 0.000211         | 0.000867            | **4.11x faster**  |
-| Array of Primitives (equal)   | 0.000016         | 0.000098            | **5.92x faster**  |
-| Array of Primitives (unequal) | 0.000015         | 0.000103            | **6.90x faster**  |
-| Array of Objects (equal)      | 0.000080         | 0.000615            | **7.73x faster**  |
-| Circular Reference            | 0.000095         | 0.000518            | **5.48x faster**  |
-| Map (equal)                   | 0.000075         | 0.001401            | **18.57x faster** |
-| Map (unequal)                 | 0.000070         | 0.001324            | **18.91x faster** |
-| Set (equal)                   | 0.000071         | 0.000919            | **12.92x faster** |
-| Set (unequal)                 | 0.000071         | 0.000913            | **12.93x faster** |
-| Empty Object vs Array         | 0.000009         | 0.000033            | **3.67x faster**  |
-| Map vs Set                    | 0.000018         | 0.000464            | **26.05x faster** |
+| Test Case | fastIsEqual (ms) | Lodash isEqual (ms) | Performance Gain |
+|-----------|------------------|---------------------|------------------|
+| Numbers | 0.000003 | 0.000007 | **2.56x faster** |
+| Strings | 0.000008 | 0.000007 | 0.92x slower |
+| Booleans | 0.000007 | 0.000007 | **0.95x faster** |
+| NaN | 0.000008 | 0.000017 | **2.05x faster** |
+| Simple Object (equal) | 0.000137 | 0.000531 | **3.87x faster** |
+| Simple Object (unequal) | 0.000137 | 0.000560 | **4.09x faster** |
+| Nested Object (equal) | 0.000240 | 0.001426 | **5.95x faster** |
+| Nested Object (unequal) | 0.000242 | 0.001437 | **5.93x faster** |
+| Array of Primitives (equal) | 0.000025 | 0.000163 | **6.44x faster** |
+| Array of Primitives (unequal) | 0.000025 | 0.000170 | **6.82x faster** |
+| Array of Objects (equal) | 0.000119 | 0.001237 | **10.39x faster** |
+| Circular Reference | 0.000136 | 0.000928 | **6.83x faster** |
+| Map (equal) | 0.000101 | 0.001765 | **17.55x faster** |
+| Map (unequal) | 0.000098 | 0.001688 | **17.22x faster** |
+| Set (equal) | 0.000098 | 0.001474 | **15.04x faster** |
+| Set (unequal) | 0.000101 | 0.001765 | **17.55x faster** |
+| Empty Object vs Array | 0.000015 | 0.000051 | **3.51x faster** |
+| Map vs Set | 0.000026 | 0.000811 | **30.69x faster** |
 
 [Benchmark logs](benchmarks/results.txt)
 
 ### Summary
-
-- **Average Performance**: `fastIsEqual` is **7.54x faster** than Lodash's `isEqual`
-- **Best Performance**: Map vs Set comparison shows **26.05x faster** execution
+- **Average Performance**: `fastIsEqual` is **10.58x faster** than Lodash's `isEqual`
+- **Best Performance**: Map vs Set comparison shows **30.69x faster** execution
 - **Iterations**: 1,000,000 per test case for accurate measurements
 
 ## License
