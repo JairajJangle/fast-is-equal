@@ -19,16 +19,16 @@ jobs:
   #       uses: actions/setup-node@v4
   #       with:
   #         node-version: "lts/*"
-  #         cache: 'npm'
+  #         cache: 'yarn'
 
   #     - name: Install dependencies
-  #       run: npm ci
+  #       run: yarn install
 
   #     - name: Lint files
-  #       run: npm run lint
+  #       run: yarn lint
 
   #     - name: Typecheck files
-  #       run: npx tsc --noEmit
+  #       run: yarn typecheck
 
   test:
     runs-on: ubuntu-latest
@@ -43,17 +43,17 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'npm'
+          cache: 'yarn'
 
       - name: Install dependencies
-        run: npm ci
+        run: yarn install
 
       - name: Run tests
-        run: npm test
+        run: yarn test
 
       - name: Generate coverage report
         if: matrix.node-version == 20
-        run: npm run test -- --coverage
+        run: yarn test --coverage
 
       - name: Upload coverage to Codecov
         if: matrix.node-version == 20
@@ -72,16 +72,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "lts/*"
-          cache: 'npm'
+          cache: 'yarn'
 
       - name: Install dependencies
-        run: npm ci
+        run: yarn install
 
       - name: Build package
-        run: npm run build
+        run: yarn build
 
       - name: Run benchmark
-        run: npm run benchmark
+        run: yarn benchmark
 
   publish-npm:
     needs: [test, build]
@@ -103,16 +103,16 @@ jobs:
         with:
           node-version: "lts/*"
           registry-url: 'https://registry.npmjs.org/'
-          cache: 'npm'
+          cache: 'yarn'
 
       - name: Install dependencies
-        run: npm ci
+        run: yarn install
 
       - name: Verify the integrity of provenance attestations and registry signatures
-        run: npm audit signatures
+        run: yarn audit
 
       - name: Release
-        run: npx semantic-release
+        run: yarn semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
