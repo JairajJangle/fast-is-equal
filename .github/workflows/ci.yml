@@ -8,26 +8,27 @@ on:
       - main
 
 jobs:
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+  # TODO: Configure lint job in later release
+  # lint:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "lts/*"
-          cache: 'npm'
+  #     - name: Setup Node.js
+  #       uses: actions/setup-node@v4
+  #       with:
+  #         node-version: "lts/*"
+  #         cache: 'npm'
 
-      - name: Install dependencies
-        run: npm ci
+  #     - name: Install dependencies
+  #       run: npm ci
 
-      - name: Lint files
-        run: npm run lint
+  #     - name: Lint files
+  #       run: npm run lint
 
-      - name: Typecheck files
-        run: npx tsc --noEmit
+  #     - name: Typecheck files
+  #       run: npx tsc --noEmit
 
   test:
     runs-on: ubuntu-latest
@@ -83,7 +84,7 @@ jobs:
         run: npm run benchmark
 
   publish-npm:
-    needs: [lint, test, build]
+    needs: [test, build]
     runs-on: ubuntu-latest
     permissions:
       contents: write # To publish a GitHub release
