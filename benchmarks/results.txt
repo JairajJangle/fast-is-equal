@@ -1,0 +1,116 @@
+Performance Comparison: fastIsEqual vs Lodash isEqual
+Iterations per test case: 1000000
+----------------------------------------
+Test Case 1: Numbers
+  fastIsEqual: 0.000003 ms
+  Lodash isEqual: 0.000006 ms
+  Difference (fastIsEqual - Lodash): -0.000002 ms
+  fastIsEqual is 1.67x faster than Lodash
+----------------------------------------
+Test Case 2: Strings
+  fastIsEqual: 0.000005 ms
+  Lodash isEqual: 0.000005 ms
+  Difference (fastIsEqual - Lodash): -0.000000 ms
+  fastIsEqual is 1.08x faster than Lodash
+----------------------------------------
+Test Case 3: Booleans
+  fastIsEqual: 0.000005 ms
+  Lodash isEqual: 0.000005 ms
+  Difference (fastIsEqual - Lodash): -0.000000 ms
+  fastIsEqual is 1.07x faster than Lodash
+----------------------------------------
+Test Case 4: NaN
+  fastIsEqual: 0.000006 ms
+  Lodash isEqual: 0.000012 ms
+  Difference (fastIsEqual - Lodash): -0.000006 ms
+  fastIsEqual is 1.96x faster than Lodash
+----------------------------------------
+Test Case 5: Simple Object (equal)
+  fastIsEqual: 0.000098 ms
+  Lodash isEqual: 0.000272 ms
+  Difference (fastIsEqual - Lodash): -0.000174 ms
+  fastIsEqual is 2.78x faster than Lodash
+----------------------------------------
+Test Case 6: Simple Object (unequal)
+  fastIsEqual: 0.000105 ms
+  Lodash isEqual: 0.000275 ms
+  Difference (fastIsEqual - Lodash): -0.000170 ms
+  fastIsEqual is 2.63x faster than Lodash
+----------------------------------------
+Test Case 7: Nested Object (equal)
+  fastIsEqual: 0.000199 ms
+  Lodash isEqual: 0.000846 ms
+  Difference (fastIsEqual - Lodash): -0.000648 ms
+  fastIsEqual is 4.26x faster than Lodash
+----------------------------------------
+Test Case 8: Nested Object (unequal)
+  fastIsEqual: 0.000211 ms
+  Lodash isEqual: 0.000867 ms
+  Difference (fastIsEqual - Lodash): -0.000656 ms
+  fastIsEqual is 4.11x faster than Lodash
+----------------------------------------
+Test Case 9: Array of Primitives (equal)
+  fastIsEqual: 0.000016 ms
+  Lodash isEqual: 0.000098 ms
+  Difference (fastIsEqual - Lodash): -0.000081 ms
+  fastIsEqual is 5.92x faster than Lodash
+----------------------------------------
+Test Case 10: Array of Primitives (unequal)
+  fastIsEqual: 0.000015 ms
+  Lodash isEqual: 0.000103 ms
+  Difference (fastIsEqual - Lodash): -0.000088 ms
+  fastIsEqual is 6.90x faster than Lodash
+----------------------------------------
+Test Case 11: Array of Objects (equal)
+  fastIsEqual: 0.000080 ms
+  Lodash isEqual: 0.000615 ms
+  Difference (fastIsEqual - Lodash): -0.000536 ms
+  fastIsEqual is 7.73x faster than Lodash
+----------------------------------------
+Test Case 12: Circular Reference
+  fastIsEqual: 0.000095 ms
+  Lodash isEqual: 0.000518 ms
+  Difference (fastIsEqual - Lodash): -0.000424 ms
+  fastIsEqual is 5.48x faster than Lodash
+----------------------------------------
+Test Case 13: Map (equal)
+  fastIsEqual: 0.000075 ms
+  Lodash isEqual: 0.001401 ms
+  Difference (fastIsEqual - Lodash): -0.001326 ms
+  fastIsEqual is 18.57x faster than Lodash
+----------------------------------------
+Test Case 14: Map (unequal)
+  fastIsEqual: 0.000070 ms
+  Lodash isEqual: 0.001324 ms
+  Difference (fastIsEqual - Lodash): -0.001254 ms
+  fastIsEqual is 18.91x faster than Lodash
+----------------------------------------
+Test Case 15: Set (equal)
+  fastIsEqual: 0.000071 ms
+  Lodash isEqual: 0.000919 ms
+  Difference (fastIsEqual - Lodash): -0.000848 ms
+  fastIsEqual is 12.92x faster than Lodash
+----------------------------------------
+Test Case 16: Set (unequal)
+  fastIsEqual: 0.000071 ms
+  Lodash isEqual: 0.000913 ms
+  Difference (fastIsEqual - Lodash): -0.000842 ms
+  fastIsEqual is 12.93x faster than Lodash
+----------------------------------------
+Test Case 17: Empty Object vs Array
+  fastIsEqual: 0.000009 ms
+  Lodash isEqual: 0.000033 ms
+  Difference (fastIsEqual - Lodash): -0.000024 ms
+  fastIsEqual is 3.67x faster than Lodash
+----------------------------------------
+Test Case 18: Map vs Set
+  fastIsEqual: 0.000018 ms
+  Lodash isEqual: 0.000464 ms
+  Difference (fastIsEqual - Lodash): -0.000446 ms
+  fastIsEqual is 26.05x faster than Lodash
+----------------------------------------
+Average Performance:
+  fastIsEqual: 0.000064 ms
+  Lodash isEqual: 0.000482 ms
+  fastIsEqual is on average 7.54x faster than Lodash
+✨  Done in 10.81s.
