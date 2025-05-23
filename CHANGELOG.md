@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/JairajJangle/fast-is-equal/compare/v1.1.0...v1.2.0) (2025-05-23)
+
+
+### Features
+
+* **trigger release:** force release ([13cea85](https://github.com/JairajJangle/fast-is-equal/commit/13cea8576ae3ae753ec93a443c3562a665e82b7b))
+
 # [1.1.0](https://github.com/JairajJangle/fast-is-equal/compare/v1.0.4...v1.1.0) (2025-05-22)
 
 
