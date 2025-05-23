@@ -19,6 +19,6 @@
     "jsx": "react-jsx",
     "allowSyntheticDefaultImports": true
   },
-  "include": ["src/**/*", "benchmarks/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "benchmarks"]
 }
