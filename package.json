@@ -52,7 +52,7 @@
     "test": "jest",
     "build": "rimraf dist && tsc",
     "prepublishOnly": "npm run build",
-    "benchmark": "ts-node benchmarks/fastIsEqual.benchmark.ts"
+    "benchmark": "ts-node --project tsconfig.node.json benchmarks/fastIsEqual.benchmark.ts"
   },
   "files": [
     "dist"
