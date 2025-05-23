@@ -80,9 +80,6 @@ jobs:
       - name: Build package
         run: yarn build
 
-      - name: Run benchmark
-        run: yarn benchmark
-
   publish-npm:
     needs: [test, build]
     runs-on: ubuntu-latest
