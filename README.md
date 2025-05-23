@@ -63,7 +63,7 @@ console.log(fastIsEqual([1, 2], [1, 3])); // false
 
 ### Detailed Benchmark Results
 
-Run `npm run benchmark` to test locally. Full results available in [benchmarks/results.txt](benchmarks/results.txt).
+Run `yarn benchmark` or `npm run benchmark` to test locally. Full results available in [benchmarks/results.txt](benchmarks/results.txt).
 
 #### Notable Test Cases
 
