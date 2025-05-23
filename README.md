@@ -62,7 +62,7 @@ console.log(fastIsEqual([1, 2], [1, 3])); // false
 
 ### Detailed Benchmark Results
 
-Run `npm run benchmark` to test locally. Full results available in [benchmarks/results.txt](https://grok.com/chat/benchmarks/results.txt).
+Run `npm run benchmark` to test locally. Full results available in [benchmarks/results.txt](benchmarks/results.txt).
 
 #### Notable Test Cases
 
@@ -76,8 +76,6 @@ Run `npm run benchmark` to test locally. Full results available in [benchmarks/r
 - Strings: 0.96x slower
 - Booleans: 0.87x slower
 - String vs Number: 0.78x slower
-
-[Benchmark logs](benchmarks/results.txt)
 
 ## Features
 
