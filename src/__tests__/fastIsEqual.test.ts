@@ -211,3 +211,156 @@ describe('isEqual', () => {
     expect(fastIsEqual(new Map(), new Set())).toBe(false);
   });
 });
+
+// **Symbols**
+it('should return true for identical symbols', () => {
+  const sym = Symbol('test');
+  expect(fastIsEqual(sym, sym)).toBe(true);
+});
+
+it('should return false for different symbols', () => {
+  const sym1 = Symbol('test');
+  const sym2 = Symbol('test');
+  expect(fastIsEqual(sym1, sym2)).toBe(false);
+});
+
+it('should handle objects with symbol properties', () => {
+  const sym = Symbol('test');
+  const obj1 = { [sym]: 'value' };
+  const obj2 = { [sym]: 'value' };
+  expect(fastIsEqual(obj1, obj2)).toBe(true);
+});
+
+// **TypedArrays**
+it('should return true for identical TypedArrays', () => {
+  const arr1 = new Uint8Array([1, 2, 3]);
+  const arr2 = new Uint8Array([1, 2, 3]);
+  expect(fastIsEqual(arr1, arr2)).toBe(true);
+});
+
+it('should return false for TypedArrays with different values', () => {
+  const arr1 = new Uint8Array([1, 2, 3]);
+  const arr2 = new Uint8Array([1, 2, 4]);
+  expect(fastIsEqual(arr1, arr2)).toBe(false);
+});
+
+it('should return false for different TypedArray types', () => {
+  const arr1 = new Uint8Array([1, 2, 3]);
+  const arr2 = new Int8Array([1, 2, 3]);
+  expect(fastIsEqual(arr1, arr2)).toBe(false);
+});
+
+// **Sets with complex values**
+it('should return true for sets with equal objects', () => {
+  const obj1 = { a: 1 };
+  const obj2 = { a: 1 };
+  const set1 = new Set([obj1]);
+  const set2 = new Set([obj2]);
+  expect(fastIsEqual(set1, set2)).toBe(true);
+});
+
+it('should handle sets with nested structures', () => {
+  const set1 = new Set([{ a: { b: 1 } }, [1, 2]]);
+  const set2 = new Set([[1, 2], { a: { b: 1 } }]);
+  expect(fastIsEqual(set1, set2)).toBe(true);
+});
+
+// **Maps with complex keys**
+it('should handle maps with object keys', () => {
+  const key1 = { id: 1 };
+  const key2 = { id: 1 };
+  const map1 = new Map([[key1, 'value']]);
+  const map2 = new Map([[key2, 'value']]);
+  expect(fastIsEqual(map1, map2)).toBe(true);
+});
+
+// **Error objects**
+it('should return true for identical Error instances', () => {
+  const err = new Error('test');
+  expect(fastIsEqual(err, err)).toBe(true);
+});
+
+it('should return false for different Error instances with same message', () => {
+  const err1 = new Error('test');
+  const err2 = new Error('test');
+  expect(fastIsEqual(err1, err2)).toBe(false);
+});
+
+// **Functions with properties**
+it('should handle functions with properties', () => {
+  const func1 = () => { };
+  func1.customProp = 'value';
+  const func2 = () => { };
+  func2.customProp = 'value';
+  expect(fastIsEqual(func1, func2)).toBe(false); // Different function references
+});
+
+// **Edge cases**
+it('should handle objects with null prototype', () => {
+  const obj1 = Object.create(null);
+  obj1.a = 1;
+  const obj2 = Object.create(null);
+  obj2.a = 1;
+  expect(fastIsEqual(obj1, obj2)).toBe(true);
+});
+
+it('should handle -0 and +0', () => {
+  expect(fastIsEqual(-0, +0)).toBe(true);
+});
+
+it('should handle Infinity', () => {
+  expect(fastIsEqual(Infinity, Infinity)).toBe(true);
+  expect(fastIsEqual(-Infinity, -Infinity)).toBe(true);
+  expect(fastIsEqual(Infinity, -Infinity)).toBe(false);
+});
+
+// **Complex nested circular references**
+it('should handle mutual circular references', () => {
+  const obj1: any = { a: {} };
+  const obj2: any = { a: {} };
+  obj1.a.b = obj1;
+  obj2.a.b = obj2;
+  expect(fastIsEqual(obj1, obj2)).toBe(true);
+});
+
+it('should handle arrays with circular references', () => {
+  const arr1: any[] = [1, 2];
+  const arr2: any[] = [1, 2];
+  arr1.push(arr1);
+  arr2.push(arr2);
+  expect(fastIsEqual(arr1, arr2)).toBe(true);
+});
+
+// **Mixed circular references**
+it('should handle different circular reference structures', () => {
+  const obj1: any = { a: { b: {} } };
+  obj1.a.b.c = obj1.a;
+  const obj2: any = { a: { b: {} } };
+  obj2.a.b.c = obj2;
+  expect(fastIsEqual(obj1, obj2)).toBe(false);
+});
+
+// **ArrayBuffer and DataView**
+it('should handle ArrayBuffer comparison', () => {
+  const buffer1 = new ArrayBuffer(8);
+  const buffer2 = new ArrayBuffer(8);
+  new Uint8Array(buffer1).set([1, 2, 3, 4]);
+  new Uint8Array(buffer2).set([1, 2, 3, 4]);
+  expect(fastIsEqual(buffer1, buffer2)).toBe(true);
+});
+
+// **Property descriptors edge case**
+it('should handle non-enumerable properties', () => {
+  const obj1 = {};
+  Object.defineProperty(obj1, 'hidden', { value: 'secret', enumerable: false });
+  const obj2 = {};
+  Object.defineProperty(obj2, 'hidden', { value: 'secret', enumerable: false });
+  expect(fastIsEqual(obj1, obj2)).toBe(true); // Should ignore non-enumerable
+});
+
+// **Sparse arrays**
+it('should handle sparse arrays correctly', () => {
+  const arr1 = [1, , 3]; // sparse array with hole
+  const arr2 = [1, undefined, 3];
+  expect(fastIsEqual(arr1, arr2)).toBe(false);
+});
