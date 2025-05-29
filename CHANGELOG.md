@@ -1,3 +1,10 @@
+## [1.2.2](https://github.com/JairajJangle/fast-is-equal/compare/v1.2.1...v1.2.2) (2025-05-29)
+
+
+### Bug Fixes
+
+* updated docs ([534d10e](https://github.com/JairajJangle/fast-is-equal/commit/534d10eb5e0b35ae4a368c05933375cbb0274630))
+
 ## [1.2.1](https://github.com/JairajJangle/fast-is-equal/compare/v1.2.0...v1.2.1) (2025-05-29)
 
 
