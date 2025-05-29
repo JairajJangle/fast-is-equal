@@ -72,7 +72,7 @@ console.log(fastIsEqual([1, 2], [1, 3])); // false
 
 ### Detailed Benchmark Results
 
-Run `yarn benchmark` or `npm run benchmark` to test locally. Full results available in [benchmarks/results.txt](https://claude.ai/chat/benchmarks/results.txt).
+Run `yarn benchmark` or `npm run benchmark` to test locally. Full results available in [benchmarks/results.txt](benchmarks/results.txt).
 
 #### Edge Cases Where Lodash Wins
 
