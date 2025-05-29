@@ -1,3 +1,11 @@
+## [1.2.1](https://github.com/JairajJangle/fast-is-equal/compare/v1.2.0...v1.2.1) (2025-05-29)
+
+
+### Bug Fixes
+
+* **perf:** greatly optimized performance by implementing the below improvements ([41c391f](https://github.com/JairajJangle/fast-is-equal/commit/41c391f327a69c46967a3a3531c5f024d8b00189))
+* **perf:** optimize fastIsEqual for better performance on equal objects and primitives ([c42094f](https://github.com/JairajJangle/fast-is-equal/commit/c42094f1c8df421841b7f82d02e870342270b387))
+
 # [1.2.0](https://github.com/JairajJangle/fast-is-equal/compare/v1.1.0...v1.2.0) (2025-05-23)
 
 
