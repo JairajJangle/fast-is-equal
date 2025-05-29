@@ -5,31 +5,31 @@ const TYPEOF_NUMBER = 'number';
 const TYPEOF_STRING = 'string';
 const TYPEOF_BOOLEAN = 'boolean';
 
+// Inline NaN check for maximum speed
+const isNaN = Number.isNaN;
+
 export function fastIsEqual(a: any, b: any) {
   // Fast path for strict equality
   if (a === b) return true;
 
-  // Handle null/undefined early
+  // Handle null/undefined early with single comparison
   if (a == null || b == null) return false;
 
   // Get types once
   const typeA = typeof a;
-  const typeB = typeof b;
 
-  // Type mismatch = not equal
-  if (typeA !== typeB) return false;
-
-  // Handle primitives inline
-  switch (typeA) {
-    case TYPEOF_NUMBER:
-      // Only NaN needs special handling
-      return Number.isNaN(a) && Number.isNaN(b);
-    case TYPEOF_STRING:
-    case TYPEOF_BOOLEAN:
-      return false; // We know a !== b
-    case TYPEOF_FUNCTION:
-      return false; // Functions use reference equality
+  // Type mismatch = not equal (avoid second typeof if possible)
+  if (typeA === TYPEOF_NUMBER) {
+    // Optimize number comparison - avoid typeof b when possible
+    return typeof b === TYPEOF_NUMBER && isNaN(a) && isNaN(b);
   }
+
+  if (typeA === TYPEOF_STRING || typeA === TYPEOF_BOOLEAN || typeA === TYPEOF_FUNCTION) {
+    return false; // We know a !== b from first check
+  }
+
+  // Now check if b is also object
+  if (typeof b !== TYPEOF_OBJECT) return false;
 
   // At this point, we know both are objects
 
@@ -46,43 +46,62 @@ export function fastIsEqual(a: any, b: any) {
     const len = a.length;
     if (len !== b.length) return false;
 
-    // Optimized array comparison
-    for (let i = 0; i < len; i++) {
-      // Sparse array check using in operator
-      if ((i in a) !== (i in b)) return false;
-      if (!(i in a)) continue;
+    // Empty arrays
+    if (len === 0) return true;
 
-      const elemA = a[i];
-      const elemB = b[i];
+    // Small arrays - unroll loop
+    if (len < 8) {
+      for (let i = 0; i < len; i++) {
+        // Sparse array check
+        const hasA = i in a;
+        if (hasA !== (i in b)) return false;
+        if (!hasA) continue;
 
-      // Fast path for identical elements
-      if (elemA === elemB) continue;
+        const elemA = a[i];
+        const elemB = b[i];
 
-      // Type check for deep comparison need
-      const elemTypeA = typeof elemA;
-      if (elemTypeA !== typeof elemB) return false;
+        // Fast path for identical elements
+        if (elemA === elemB) continue;
 
-      // Primitive comparison
-      if (elemTypeA !== TYPEOF_OBJECT && elemTypeA !== TYPEOF_FUNCTION) {
-        // Check for NaN
-        if (elemTypeA === TYPEOF_NUMBER && Number.isNaN(elemA) && Number.isNaN(elemB)) continue;
-        return false;
+        // Null check
+        if (elemA == null || elemB == null) return false;
+
+        // Type check
+        const elemTypeA = typeof elemA;
+        if (elemTypeA !== typeof elemB) return false;
+
+        // Number special case
+        if (elemTypeA === TYPEOF_NUMBER) {
+          if (!isNaN(elemA) || !isNaN(elemB)) return false;
+          continue;
+        }
+
+        // Primitive comparison
+        if (elemTypeA !== TYPEOF_OBJECT && elemTypeA !== TYPEOF_FUNCTION) {
+          return false;
+        }
+
+        // Need deep comparison - use minimal visited map
+        if (!deepEqual(elemA, elemB, new Map())) return false;
       }
-
-      // Need deep comparison - use minimal visited map
-      if (!deepEqual(elemA, elemB, new Map())) return false;
+      return true;
     }
-    return true;
+
+    // Large arrays - use deep equal
+    return deepEqual(a, b, new Map());
+  }
+
+  // Handle built-in types inline for common cases
+  if (aCtor === Date) {
+    return a.getTime() === b.getTime();
+  }
+
+  if (aCtor === RegExp) {
+    return a.source === b.source && a.flags === b.flags;
   }
 
   // For all other objects, use deep comparison
   return deepEqual(a, b, new Map());
-}
-
-// Inline helper for checking if value is primitive
-function isPrimitive(val: any): boolean {
-  const t = typeof val;
-  return t !== TYPEOF_OBJECT && t !== TYPEOF_FUNCTION;
 }
 
 function deepEqual(valA: any, valB: any, visited: Map<any, any>): boolean {
@@ -92,13 +111,13 @@ function deepEqual(valA: any, valB: any, visited: Map<any, any>): boolean {
   // Null check
   if (valA == null || valB == null) return false;
 
-  // Type check with caching
+  // Type check
   const typeA = typeof valA;
   if (typeA !== typeof valB) return false;
 
   // Primitive types
   if (typeA === TYPEOF_NUMBER) {
-    return Number.isNaN(valA) && Number.isNaN(valB);
+    return isNaN(valA) && isNaN(valB);
   }
 
   if (typeA !== TYPEOF_OBJECT && typeA !== TYPEOF_FUNCTION) {
@@ -113,9 +132,6 @@ function deepEqual(valA: any, valB: any, visited: Map<any, any>): boolean {
   // Constructor check
   const ctorA = valA.constructor;
   if (ctorA !== valB.constructor) return false;
-
-  // Handle built-in types with switch for better performance
-  // Using constructor as discriminator when possible
 
   // Date - inline comparison
   if (ctorA === Date) {
@@ -141,9 +157,45 @@ function deepEqual(valA: any, valB: any, visited: Map<any, any>): boolean {
     visited.set(valA, valB);
     visited.set(valB, valA);
 
-    // Optimized loop
-    for (let i = 0; i < len; i++) {
-      // Sparse array handling
+    // Empty arrays
+    if (len === 0) return true;
+
+    // Small arrays - unrolled loop
+    if (len < 8) {
+      for (let i = 0; i < len; i++) {
+        // Sparse array handling
+        const hasA = i in valA;
+        if (hasA !== (i in valB)) return false;
+        if (!hasA) continue;
+
+        const elemA = valA[i];
+        const elemB = valB[i];
+
+        if (elemA !== elemB && !deepEqual(elemA, elemB, visited)) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    // Large arrays - optimized loop with early exit
+    let i = 0;
+    // Check first few elements for quick rejection
+    for (; i < 4 && i < len; i++) {
+      const hasA = i in valA;
+      if (hasA !== (i in valB)) return false;
+      if (!hasA) continue;
+
+      const elemA = valA[i];
+      const elemB = valB[i];
+
+      if (elemA !== elemB && !deepEqual(elemA, elemB, visited)) {
+        return false;
+      }
+    }
+
+    // Continue with rest
+    for (; i < len; i++) {
       const hasA = i in valA;
       if (hasA !== (i in valB)) return false;
       if (!hasA) continue;
@@ -165,6 +217,9 @@ function deepEqual(valA: any, valB: any, visited: Map<any, any>): boolean {
 
     if (mapA.size !== mapB.size) return false;
 
+    // Empty maps
+    if (mapA.size === 0) return true;
+
     visited.set(valA, valB);
     visited.set(valB, valA);
 
@@ -172,12 +227,17 @@ function deepEqual(valA: any, valB: any, visited: Map<any, any>): boolean {
     let complexKeyFound = false;
 
     for (const [key, valueA] of mapA) {
-      if (!isPrimitive(key)) {
+      // Quick primitive check
+      const keyType = typeof key;
+      if (keyType === TYPEOF_OBJECT || keyType === TYPEOF_FUNCTION) {
         complexKeyFound = true;
         break;
       }
 
-      if (!mapB.has(key) || !deepEqual(valueA, mapB.get(key), visited)) {
+      if (!mapB.has(key)) return false;
+
+      const valueB = mapB.get(key);
+      if (valueA !== valueB && !deepEqual(valueA, valueB, visited)) {
         return false;
       }
     }
@@ -205,15 +265,43 @@ function deepEqual(valA: any, valB: any, visited: Map<any, any>): boolean {
 
     if (setA.size !== setB.size) return false;
 
+    // Empty sets
+    if (setA.size === 0) return true;
+
     // Early visited check
     visited.set(valA, valB);
+    visited.set(valB, valA);
+
+    // Small sets - optimize for common case
+    if (setA.size < 10) {
+      // Check if all primitives first
+      let allPrimitive = true;
+      for (const val of setA) {
+        const valType = typeof val;
+        if (valType === TYPEOF_OBJECT || valType === TYPEOF_FUNCTION) {
+          allPrimitive = false;
+          break;
+        }
+      }
+
+      if (allPrimitive) {
+        for (const val of setA) {
+          if (!setB.has(val)) return false;
+        }
+        return true;
+      }
+    }
 
     // Scan for complexity
     let hasComplex = false;
+    let primitiveCount = 0;
+
     for (const val of setA) {
-      if (!isPrimitive(val)) {
+      const valType = typeof val;
+      if (valType === TYPEOF_OBJECT || valType === TYPEOF_FUNCTION) {
         hasComplex = true;
-        break;
+      } else {
+        primitiveCount++;
       }
     }
 
@@ -225,11 +313,20 @@ function deepEqual(valA: any, valB: any, visited: Map<any, any>): boolean {
       return true;
     }
 
-    // Slow path - need one-to-one matching
-    // Avoid Array.from for performance
-    const iterB = setB.values();
+    // Mixed or complex values - optimize based on primitive ratio
+    if (primitiveCount > setA.size * 0.7) {
+      // Most are primitives - check them first
+      for (const val of setA) {
+        const valType = typeof val;
+        if (valType !== TYPEOF_OBJECT && valType !== TYPEOF_FUNCTION) {
+          if (!setB.has(val)) return false;
+        }
+      }
+    }
+
+    // Complex matching
     const arrB: any[] = [];
-    for (const val of iterB) {
+    for (const val of setB) {
       arrB.push(val);
     }
 
@@ -237,6 +334,15 @@ function deepEqual(valA: any, valB: any, visited: Map<any, any>): boolean {
 
     for (const valA of setA) {
       let found = false;
+
+      // Try direct lookup first for primitives
+      const valAType = typeof valA;
+      if (valAType !== TYPEOF_OBJECT && valAType !== TYPEOF_FUNCTION) {
+        if (setB.has(valA)) continue;
+        return false;
+      }
+
+      // Complex value matching
       for (let j = 0; j < arrB.length; j++) {
         if (!used[j]) {
           const newVisited = new Map(visited);
@@ -264,17 +370,23 @@ function deepEqual(valA: any, valB: any, visited: Map<any, any>): boolean {
     const viewA = new Uint8Array(bufA);
     const viewB = new Uint8Array(bufB);
 
-    // Unroll loop for better performance
+    // Unroll loop for better performance on larger buffers
     let i = 0;
-    const len = byteLength - 3;
-    for (; i < len; i += 4) {
+    const unrollEnd = byteLength - 7;
+
+    for (; i < unrollEnd; i += 8) {
       if (viewA[i] !== viewB[i] ||
         viewA[i + 1] !== viewB[i + 1] ||
         viewA[i + 2] !== viewB[i + 2] ||
-        viewA[i + 3] !== viewB[i + 3]) {
+        viewA[i + 3] !== viewB[i + 3] ||
+        viewA[i + 4] !== viewB[i + 4] ||
+        viewA[i + 5] !== viewB[i + 5] ||
+        viewA[i + 6] !== viewB[i + 6] ||
+        viewA[i + 7] !== viewB[i + 7]) {
         return false;
       }
     }
+
     // Handle remaining bytes
     for (; i < byteLength; i++) {
       if (viewA[i] !== viewB[i]) return false;
@@ -290,8 +402,27 @@ function deepEqual(valA: any, valB: any, visited: Map<any, any>): boolean {
     const len = arrA.length;
     if (len !== arrB.length) return false;
 
-    // Direct comparison
-    for (let i = 0; i < len; i++) {
+    // Small typed arrays
+    if (len < 16) {
+      for (let i = 0; i < len; i++) {
+        if (arrA[i] !== arrB[i]) return false;
+      }
+      return true;
+    }
+
+    // Large typed arrays - unroll loop
+    let i = 0;
+    const unrollLen = len - 3;
+    for (; i < unrollLen; i += 4) {
+      if (arrA[i] !== arrB[i] ||
+        arrA[i + 1] !== arrB[i + 1] ||
+        arrA[i + 2] !== arrB[i + 2] ||
+        arrA[i + 3] !== arrB[i + 3]) {
+        return false;
+      }
+    }
+    // Handle remaining
+    for (; i < len; i++) {
       if (arrA[i] !== arrB[i]) return false;
     }
     return true;
@@ -308,39 +439,69 @@ function deepEqual(valA: any, valB: any, visited: Map<any, any>): boolean {
   // Quick length check
   if (keysALen !== Object.keys(valB).length) return false;
 
-  // Check for symbols only if likely
-  let symbolsA: symbol[] | null = null;
-  const checkSymbols = Object.getOwnPropertySymbols !== undefined;
-
-  if (checkSymbols) {
-    symbolsA = Object.getOwnPropertySymbols(valA);
-    if (symbolsA.length > 0) {
+  // Empty objects
+  if (keysALen === 0) {
+    // Check for symbols only if object is empty
+    const checkSymbols = Object.getOwnPropertySymbols !== undefined;
+    if (checkSymbols) {
+      const symbolsA = Object.getOwnPropertySymbols(valA);
       if (symbolsA.length !== Object.getOwnPropertySymbols(valB).length) {
+        return false;
+      }
+      // Check symbol properties
+      for (let i = 0; i < symbolsA.length; i++) {
+        const sym = symbolsA[i];
+        if (!(sym in valB) || !deepEqual(valA[sym], valB[sym], visited)) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  // Small objects - unroll loop
+  if (keysALen < 8) {
+    for (let i = 0; i < keysALen; i++) {
+      const key = keysA[i];
+      // Use in operator for fastest check
+      if (!(key in valB)) return false;
+
+      const propA = valA[key];
+      const propB = valB[key];
+
+      if (propA !== propB && !deepEqual(propA, propB, visited)) {
+        return false;
+      }
+    }
+  } else {
+    // Large objects - optimized loop
+    for (let i = 0; i < keysALen; i++) {
+      const key = keysA[i];
+      if (!(key in valB)) return false;
+
+      const propA = valA[key];
+      const propB = valB[key];
+
+      if (propA !== propB && !deepEqual(propA, propB, visited)) {
         return false;
       }
     }
   }
 
-  // Optimized property checking
-  for (let i = 0; i < keysALen; i++) {
-    const key = keysA[i];
-    // Use in operator for fastest check
-    if (!(key in valB)) return false;
-
-    const propA = valA[key];
-    const propB = valB[key];
-
-    if (propA !== propB && !deepEqual(propA, propB, visited)) {
-      return false;
-    }
-  }
-
-  // Check symbols if present
-  if (symbolsA && symbolsA.length > 0) {
-    for (let i = 0; i < symbolsA.length; i++) {
-      const sym = symbolsA[i];
-      if (!(sym in valB) || !deepEqual(valA[sym], valB[sym], visited)) {
+  // Check for symbols
+  const checkSymbols = Object.getOwnPropertySymbols !== undefined;
+  if (checkSymbols) {
+    const symbolsA = Object.getOwnPropertySymbols(valA);
+    if (symbolsA.length > 0) {
+      if (symbolsA.length !== Object.getOwnPropertySymbols(valB).length) {
         return false;
+      }
+      // Check symbol properties
+      for (let i = 0; i < symbolsA.length; i++) {
+        const sym = symbolsA[i];
+        if (!(sym in valB) || !deepEqual(valA[sym], valB[sym], visited)) {
+          return false;
+        }
       }
     }
   }
