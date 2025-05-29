@@ -112,5 +112,6 @@
       "type": "individual",
       "url": "https://ko-fi.com/futurejj"
     }
-  ]
+  ],
+  "packageManager": "yarn@1.22.22"
 }
