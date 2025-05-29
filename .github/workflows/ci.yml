@@ -51,9 +51,6 @@ jobs:
       - name: Run tests
         run: yarn test
 
-      - name: Run benchmark
-        run: yarn benchmark
-
       - name: Generate coverage report
         if: matrix.node-version == 20
         run: yarn test --coverage
