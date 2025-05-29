@@ -364,3 +364,105 @@ it('should handle sparse arrays correctly', () => {
   const arr2 = [1, undefined, 3];
   expect(fastIsEqual(arr1, arr2)).toBe(false);
 });
+
+// Test the unrolled loop optimization for small arrays
+it('should handle arrays of exactly 8 elements (boundary case)', () => {
+  const arr1 = [1, 2, 3, 4, 5, 6, 7, 8];
+  const arr2 = [1, 2, 3, 4, 5, 6, 7, 8];
+  expect(fastIsEqual(arr1, arr2)).toBe(true);
+});
+
+// Test the Uint32Array optimization for ArrayBuffer
+it('should handle ArrayBuffer with non-4-byte-aligned size', () => {
+  const buffer1 = new ArrayBuffer(33); // 33 bytes = 8 * 4 + 1
+  const buffer2 = new ArrayBuffer(33);
+  new Uint8Array(buffer1).fill(42);
+  new Uint8Array(buffer2).fill(42);
+  expect(fastIsEqual(buffer1, buffer2)).toBe(true);
+});
+
+// Test small vs large ArrayBuffer paths
+it('should handle small ArrayBuffer (< 32 bytes)', () => {
+  const buffer1 = new ArrayBuffer(16);
+  const buffer2 = new ArrayBuffer(16);
+  new Uint8Array(buffer1).set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+  new Uint8Array(buffer2).set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+  expect(fastIsEqual(buffer1, buffer2)).toBe(true);
+});
+
+it('should handle sets with mixed primitive and complex values', () => {
+  const obj1 = { a: 1 };
+  const obj2 = { a: 1 };
+  const set1 = new Set([1, 'hello', obj1, true]);
+  const set2 = new Set([true, obj2, 1, 'hello']);
+  expect(fastIsEqual(set1, set2)).toBe(true);
+});
+
+it('should handle sets where >70% are primitives (optimization path)', () => {
+  const set1 = new Set([1, 2, 3, 4, 5, 6, 7, { a: 1 }, { b: 2 }]);
+  const set2 = new Set([7, 6, 5, 4, 3, 2, 1, { b: 2 }, { a: 1 }]);
+  expect(fastIsEqual(set1, set2)).toBe(true);
+});
+
+// Test empty object with symbols
+it('should handle empty objects with only symbol properties', () => {
+  const sym = Symbol('test');
+  const obj1 = { [sym]: 'value' };
+  const obj2 = { [sym]: 'value' };
+  expect(fastIsEqual(obj1, obj2)).toBe(true);
+});
+
+// Test objects with exactly 8 properties (unroll boundary)
+it('should handle objects with exactly 8 properties', () => {
+  const obj1 = { a: 1, b: 2, c: 3, d: 4, e: 5, f: 6, g: 7, h: 8 };
+  const obj2 = { a: 1, b: 2, c: 3, d: 4, e: 5, f: 6, g: 7, h: 8 };
+  expect(fastIsEqual(obj1, obj2)).toBe(true);
+});
+
+// Test the optimized number type checking
+it('should handle number comparison with non-number efficiently', () => {
+  expect(fastIsEqual(42, '42')).toBe(false);
+  expect(fastIsEqual(NaN, 'NaN')).toBe(false);
+});
+
+// Test early exit for primitives
+it('should efficiently handle primitive type mismatches', () => {
+  expect(fastIsEqual('string', true)).toBe(false);
+  expect(fastIsEqual(true, 42)).toBe(false);
+  expect(fastIsEqual(() => { }, 'function')).toBe(false);
+});
+
+// Test unrolled loop for typed arrays
+it('should handle typed arrays with length exactly 16', () => {
+  const arr1 = new Float32Array(16).fill(3.14);
+  const arr2 = new Float32Array(16).fill(3.14);
+  expect(fastIsEqual(arr1, arr2)).toBe(true);
+});
+
+it('should handle typed arrays with non-multiple-of-4 length', () => {
+  const arr1 = new Int32Array([1, 2, 3, 4, 5, 6, 7]);
+  const arr2 = new Int32Array([1, 2, 3, 4, 5, 6, 7]);
+  expect(fastIsEqual(arr1, arr2)).toBe(true);
+});
+
+it('should handle empty maps', () => {
+  expect(fastIsEqual(new Map(), new Map())).toBe(true);
+});
+
+it('should early exit on first few elements difference in large arrays', () => {
+  const arr1 = new Array(1000).fill(1);
+  const arr2 = new Array(1000).fill(1);
+  arr2[2] = 2; // Difference in first 4 elements
+  expect(fastIsEqual(arr1, arr2)).toBe(false);
+});
+
+it('should handle -0 === +0 correctly', () => {
+  expect(fastIsEqual(-0, +0)).toBe(true);
+  expect(fastIsEqual(-0, 0)).toBe(true);
+});
+
+it('should handle sparse arrays in small array optimization path', () => {
+  const arr1 = [1, , 3, , 5]; // length 5, sparse
+  const arr2 = [1, , 3, , 5];
+  expect(fastIsEqual(arr1, arr2)).toBe(true);
+});
