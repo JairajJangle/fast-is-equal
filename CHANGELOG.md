@@ -1,3 +1,10 @@
+## [1.2.3](https://github.com/JairajJangle/fast-is-equal/compare/v1.2.2...v1.2.3) (2025-05-31)
+
+
+### Bug Fixes
+
+* improve type checking and add support for Symbol, BigInt, and DataView ([4f66af2](https://github.com/JairajJangle/fast-is-equal/commit/4f66af2deb8a7e4f4ef70343003c647c8041aeaa))
+
 ## [1.2.2](https://github.com/JairajJangle/fast-is-equal/compare/v1.2.1...v1.2.2) (2025-05-29)
 
 
