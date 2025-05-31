@@ -4,6 +4,8 @@ const TYPEOF_FUNCTION = 'function';
 const TYPEOF_NUMBER = 'number';
 const TYPEOF_STRING = 'string';
 const TYPEOF_BOOLEAN = 'boolean';
+const TYPEOF_SYMBOL = 'symbol';
+const TYPEOF_BIGINT = 'bigint';
 
 // Inline NaN check for maximum speed
 const isNaN = Number.isNaN;
@@ -16,6 +18,7 @@ const setConstructor = Set;
 const arrayBufferConstructor = ArrayBuffer;
 const promiseConstructor = Promise;
 const errorConstructor = Error;
+const dataViewConstructor = DataView;
 
 export function fastIsEqual(a: any, b: any) {
   // Fast path for strict equality
@@ -33,7 +36,7 @@ export function fastIsEqual(a: any, b: any) {
     return typeof b === TYPEOF_NUMBER && isNaN(a) && isNaN(b);
   }
 
-  if (typeA === TYPEOF_STRING || typeA === TYPEOF_BOOLEAN || typeA === TYPEOF_FUNCTION) {
+  if (typeA === TYPEOF_STRING || typeA === TYPEOF_BOOLEAN || typeA === TYPEOF_FUNCTION || typeA === TYPEOF_SYMBOL || typeA === TYPEOF_BIGINT) {
     return false; // We know a !== b from first check
   }
 
@@ -81,7 +84,7 @@ export function fastIsEqual(a: any, b: any) {
 
         // Number special case
         if (elemTypeA === TYPEOF_NUMBER) {
-          if (!isNaN(elemA) || !isNaN(elemB)) return false;
+          if (!(isNaN(elemA) && isNaN(elemB))) return false;
           continue;
         }
 
@@ -330,8 +333,24 @@ function deepEqual(valA: any, valB: any, visited: Map<any, any>): boolean {
     return true;
   }
 
+  // DataView - optimized
+  if (ctorA === dataViewConstructor) {
+    const viewA = valA as DataView;
+    const viewB = valB as DataView;
+    if (viewA.byteLength !== viewB.byteLength || viewA.byteOffset !== viewB.byteOffset) {
+      return false;
+    }
+    // Compare the underlying buffer data
+    for (let i = 0; i < viewA.byteLength; i++) {
+      if (viewA.getUint8(i) !== viewB.getUint8(i)) return false;
+    }
+    return true;
+  }
+
   // TypedArrays
   if (ArrayBuffer.isView(valA)) {
+    if (valA.constructor !== valB.constructor) return false;
+
     const arrA = valA as any;
     const arrB = valB as any;
     const len = arrA.length;
@@ -409,7 +428,7 @@ function deepEqual(valA: any, valB: any, visited: Map<any, any>): boolean {
       if (propTypeA === TYPEOF_OBJECT || propTypeA === TYPEOF_FUNCTION) {
         if (!deepEqual(propA, propB, visited)) return false;
       } else if (propTypeA === TYPEOF_NUMBER) {
-        if (!isNaN(propA) || !isNaN(propB)) return false;
+        if (!(isNaN(propA) && isNaN(propB))) return false;
       } else {
         return false;
       }
