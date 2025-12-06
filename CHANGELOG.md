@@ -2,8 +2,9 @@
 
 ### Development Updates
 
-* add coverage and increase coverage to 99%
+* add coverage to local test output and add tests to increase to 99%+
 * update devdeps
+* devenv node 22+
 
 ## [1.2.3](https://github.com/JairajJangle/fast-is-equal/compare/v1.2.2...v1.2.3) (2025-05-31)
 
