@@ -1,3 +1,10 @@
+## [1.2.4](https://github.com/JairajJangle/fast-is-equal/compare/v1.2.3...v1.2.4) (2025-12-05)
+
+### Development Updates
+
+* add coverage and increase coverage to 99%
+* update devdeps
+
 ## [1.2.3](https://github.com/JairajJangle/fast-is-equal/compare/v1.2.2...v1.2.3) (2025-05-31)
 
 
