@@ -99,6 +99,12 @@ describe('fastIsEqual', () => {
 
   describe('Objects', () => {
     describe('Plain objects', () => {
+      it('should return true for empty objects', () => {
+        const obj1 = {};
+        const obj2 = {};
+        expect(fastIsEqual(obj1, obj2)).toBe(true);
+      });
+
       it('should return true for identical objects', () => {
         const obj = { a: 1, b: { c: 2 } };
         expect(fastIsEqual(obj, obj)).toBe(true);
@@ -116,10 +122,22 @@ describe('fastIsEqual', () => {
         expect(fastIsEqual(obj1, obj2)).toBe(false);
       });
 
+      it('should return false for objects with different numbers of keys', () => {
+        const obj1 = { a: 1 };
+        const obj2 = { a: 1, b: 2 };
+        expect(fastIsEqual(obj1, obj2)).toBe(false);
+      });
+
       it('should return false for objects with different values', () => {
         const obj1 = { a: 1 };
         const obj2 = { a: 2 };
         expect(fastIsEqual(obj1, obj2)).toBe(false);
+      });
+
+      it('should return true for objects with matching NaN values', () => {
+        const obj1 = { a: NaN };
+        const obj2 = { a: NaN };
+        expect(fastIsEqual(obj1, obj2)).toBe(true);
       });
 
       it('should handle objects with numeric string keys correctly', () => {
@@ -132,6 +150,12 @@ describe('fastIsEqual', () => {
         const obj1 = { a: 1, b: 2, c: 3, d: 4, e: 5, f: 6, g: 7, h: 8 };
         const obj2 = { a: 1, b: 2, c: 3, d: 4, e: 5, f: 6, g: 7, h: 8 };
         expect(fastIsEqual(obj1, obj2)).toBe(true);
+      });
+
+      it('should return false comparing object to a symbol', () => {
+        const sym = Symbol('test');
+        const obj = {};
+        expect(fastIsEqual(obj, sym)).toBe(false);
       });
     });
 
@@ -191,9 +215,15 @@ describe('fastIsEqual', () => {
 
   describe('Arrays', () => {
     describe('Basic arrays', () => {
-      it('should return true for identical arrays', () => {
+      it('should return true for identical arrays, same ref', () => {
         const arr = [1, 2, 3];
         expect(fastIsEqual(arr, arr)).toBe(true);
+      });
+
+      it('should return true for identical arrays', () => {
+        const arr1 = [1, 2, 3];
+        const arr2 = [1, 2, 3];
+        expect(fastIsEqual(arr1, arr2)).toBe(true);
       });
 
       it('should return true for deeply equal arrays', () => {
@@ -211,6 +241,222 @@ describe('fastIsEqual', () => {
       it('should return false for arrays with different elements', () => {
         const arr1 = [1, 2];
         const arr2 = [1, 3];
+        expect(fastIsEqual(arr1, arr2)).toBe(false);
+      });
+
+      it('should return true for empty arrays', () => {
+        const arr1 = new Array();
+        const arr2 = new Array();
+        expect(fastIsEqual(arr1, arr2)).toBe(true);
+      });
+    });
+
+    describe('Special cases small arrays', () => {
+      it('should return true for two NaNs in a small array', () => {
+        const arr1 = [1, 2, NaN, 3];
+        const arr2 = [1, 2, NaN, 3];
+        expect(fastIsEqual(arr1, arr2)).toBe(true);
+      });
+
+      it('should return false for different symbols, different content', () => {
+        const arr1 = [Symbol('one')];
+        const arr2 = [Symbol('two')];
+        expect(fastIsEqual(arr1, arr2)).toBe(false);
+      });
+
+      it('should return false for different symbols, same content', () => {
+        const arr1 = [Symbol('one')];
+        const arr2 = [Symbol('one')];
+        expect(fastIsEqual(arr1, arr2)).toBe(false);
+      });
+
+      it('should return false if it contains mismatching nullish', () => {
+        const arr1 = [1, 2, null, 3];
+        const arr2 = [1, 2, undefined, 3];
+        expect(fastIsEqual(arr1, arr2)).toBe(false);
+      });
+
+      it('should return true if it contains matching nullish', () => {
+        const arr1 = [1, 2, undefined, 3];
+        const arr2 = [1, 2, undefined, 3];
+        const arr3 = [1, 2, null, 3];
+        const arr4 = [1, 2, null, 3];
+        expect(fastIsEqual(arr1, arr2)).toBe(true);
+        expect(fastIsEqual(arr3, arr4)).toBe(true);
+      });
+
+      it('should return false if it contains mismatching types', () => {
+        const arr1 = [1, 2, Symbol('test'), 3];
+        const arr2 = [1, 2, {}, 3];
+        expect(fastIsEqual(arr1, arr2)).toBe(false);
+      });
+
+      it('should return true for contained empty arrays', () => {
+        const arr1 = [[]];
+        const arr2 = [[]];
+        expect(fastIsEqual(arr1, arr2)).toBe(true);
+      });
+    });
+
+    describe('Special cases arrays n > 8', () => {
+      it('should return false if it contains mismatching nullish', () => {
+        const arr1 = [1, 2, 3, 4, 5, 6, 7, 8, null, 10];
+        const arr2 = [1, 2, 3, 4, 5, 6, 7, 8, undefined, 10];
+        expect(fastIsEqual(arr1, arr2)).toBe(false);
+      });
+
+      it('should return true if it contains matching nullish', () => {
+        const arr1 = [1, 2, 3, 4, 5, 6, 7, 8, undefined, 10];
+        const arr2 = [1, 2, 3, 4, 5, 6, 7, 8, undefined, 10];
+        const arr3 = [1, 2, 3, 4, 5, 6, 7, 8, null, 10];
+        const arr4 = [1, 2, 3, 4, 5, 6, 7, 8, null, 10];
+        expect(fastIsEqual(arr1, arr2)).toBe(true);
+        expect(fastIsEqual(arr3, arr4)).toBe(true);
+      });
+
+      it('should return false if it contains mismatching types', () => {
+        const arr1 = [1, 2, 3, 4, 5, 6, 7, 8, Symbol('test'), 10];
+        const arr2 = [1, 2, 3, 4, 5, 6, 7, 8, {}, 10];
+        expect(fastIsEqual(arr1, arr2)).toBe(false);
+      });
+
+      it('should return false for contained array length mismatch', () => {
+        const arr1 = [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]];
+        const arr2 = [[1, 2, 3, 4, 5, 6, 7, 8, 9]];
+        expect(fastIsEqual(arr1, arr2)).toBe(false);
+      });
+
+      it('shoulld return true for matching contained sparse arrays', () => {
+        const arr1 = [[1, , 3, , 5, , 7, , 9, , 11, , 13, , 15]];
+        const arr2 = [[1, , 3, , 5, , 7, , 9, , 11, , 13, , 15]];
+        expect(fastIsEqual(arr1, arr2)).toBe(true);
+      });
+
+      it('shoulld return false for different contained sparse arrays', () => {
+        const arr1 = [[1, , 3, , 5, , 7, , 9, , 11, , 13, , 15]];
+        const arr2 = [[1, , 3, , 5, , 7, , 9, , 11, 12, 13, , 15]];
+        expect(fastIsEqual(arr1, arr2)).toBe(false);
+      });
+
+      it('should return true for two NaNs', () => {
+        const arr1 = [1, 2, 3, 4, 5, 6, 7, 8, NaN, 10];
+        const arr2 = [1, 2, 3, 4, 5, 6, 7, 8, NaN, 10];
+        expect(fastIsEqual(arr1, arr2)).toBe(true);
+      });
+
+      it('should return false for different symbols, different content', () => {
+        const arr1 = [1, 2, 3, 4, 5, 6, 7, 8, Symbol('one'), 10];
+        const arr2 = [1, 2, 3, 4, 5, 6, 7, 8, Symbol('two'), 10];
+        expect(fastIsEqual(arr1, arr2)).toBe(false);
+      });
+
+      it('should return true for matching dates', () => {
+        const arr1 = [1, 2, 3, 4, 5, 6, 7, 8, new Date('2023-01-01'), 10];
+        const arr2 = [1, 2, 3, 4, 5, 6, 7, 8, new Date('2023-01-01'), 10];
+        expect(fastIsEqual(arr1, arr2)).toBe(true);
+      });
+
+      it('should return false for different dates', () => {
+        const arr1 = [1, 2, 3, 4, 5, 6, 7, 8, new Date('2023-01-01'), 10];
+        const arr2 = [1, 2, 3, 4, 5, 6, 7, 8, new Date('2023-01-02'), 10];
+        expect(fastIsEqual(arr1, arr2)).toBe(false);
+      });
+
+      it('should return true for matching regular expressions', () => {
+        const arr1 = [1, 2, 3, 4, 5, 6, 7, 8, /^[\d]+$/, 10];
+        const arr2 = [1, 2, 3, 4, 5, 6, 7, 8, /^[\d]+$/, 10];
+        expect(fastIsEqual(arr1, arr2)).toBe(true);
+      });
+
+      it('should return false for different regular expressions', () => {
+        const arr1 = [1, 2, 3, 4, 5, 6, 7, 8, /^[\d]+$/, 10];
+        const arr2 = [1, 2, 3, 4, 5, 6, 7, 8, /^[\d]*$/, 10];
+        expect(fastIsEqual(arr1, arr2)).toBe(false);
+      });
+
+      it('should return false for objects with different symbol keys, different descriptions', () => {
+        const symb1 = Symbol('one');
+        const symb2 = Symbol('two');
+        const arr1 = [1, 2, 3, 4, 5, 6, 7, 8, { [symb1]: 'one' }, 10];
+        const arr2 = [1, 2, 3, 4, 5, 6, 7, 8, { [symb2]: 'two' }, 10];
+        expect(fastIsEqual(arr1, arr2)).toBe(false);
+      });
+
+      it('should return false for objects with different symbol keys, same descriptions', () => {
+        const symb1 = Symbol('one');
+        const symb2 = Symbol('one');
+        const arr1 = [1, 2, 3, 4, 5, 6, 7, 8, { [symb1]: 'one' }, 10];
+        const arr2 = [1, 2, 3, 4, 5, 6, 7, 8, { [symb2]: 'one' }, 10];
+        expect(fastIsEqual(arr1, arr2)).toBe(false);
+      });
+
+      it('should return true for objects with the same symbol properties', () => {
+        const symb1 = Symbol('one');
+        const arr1 = [1, 2, 3, 4, 5, 6, 7, 8, { [symb1]: 'one' }, 10];
+        const arr2 = [1, 2, 3, 4, 5, 6, 7, 8, { [symb1]: 'one' }, 10];
+        expect(fastIsEqual(arr1, arr2)).toBe(true);
+      });
+
+      it('should return false for objects with the mismatching symbol properties', () => {
+        const symb1 = Symbol('one');
+        const symb2 = Symbol('one');
+        const arr1 = [1, 2, 3, 4, 5, 6, 7, 8, { [symb1]: 'one' }, 10];
+        const arr2 = [1, 2, 3, 4, 5, 6, 7, 8, { [symb1]: 'one', [symb2]: 'two' }, 10];
+        expect(fastIsEqual(arr1, arr2)).toBe(false);
+      });
+
+      it('should return true for objects with the same symbol properties, same content, and other props', () => {
+        const symb1 = Symbol('one');
+        const arr1 = [1, 2, 3, 4, 5, 6, 7, 8, { [symb1]: 'one', hello: 'world' }, 10];
+        const arr2 = [1, 2, 3, 4, 5, 6, 7, 8, { [symb1]: 'one', hello: 'world' }, 10];
+        expect(fastIsEqual(arr1, arr2)).toBe(true);
+      });
+
+      it('should return false for objects with different symbol properties and matching other props', () => {
+        const symb1 = Symbol('one');
+        const symb2 = Symbol('one');
+        const arr1 = [1, 2, 3, 4, 5, 6, 7, 8, { hello: 'world', [symb1]: 'one' }, 10];
+        const arr2 = [1, 2, 3, 4, 5, 6, 7, 8, { hello: 'world', [symb2]: 'one' }, 10];
+        expect(fastIsEqual(arr1, arr2)).toBe(false);
+      });
+
+      it('should return false for objects with same symbol properties, but too many, matching other props', () => {
+        const symb1 = Symbol('one');
+        const symb2 = Symbol('one');
+        const arr1 = [1, 2, 3, 4, 5, 6, 7, 8, { hello: 'world', [symb1]: 'one' }, 10];
+        const arr2 = [1, 2, 3, 4, 5, 6, 7, 8, { hello: 'world', [symb1]: 'one', [symb2]: 'one' }, 10];
+        expect(fastIsEqual(arr1, arr2)).toBe(false);
+      });
+    });
+
+    describe('Arrays with objects', () => {
+      it('should return true with equal objects', () => {
+        const arr1 = [1, 2, { one: 'two' }, 3];
+        const arr2 = [1, 2, { one: 'two' }, 3];
+        expect(fastIsEqual(arr1, arr2)).toBe(true);
+      });
+
+      it('should return false with equal objects but different other values', () => {
+        const arr1 = [1, 2, { one: 'two' }, 3];
+        const arr2 = [1, 2, { one: 'two' }, 4];
+        expect(fastIsEqual(arr1, arr2)).toBe(false);
+      });
+
+      it('should return false with different objects', () => {
+        const arr1 = [1, 2, { one: 'two' }, 3];
+        const arr2 = [1, 2, { one: 'three' }, 3];
+        expect(fastIsEqual(arr1, arr2)).toBe(false);
+      });
+
+      it('should return true with equal objects at the end', () => {
+        const arr1 = [1, 2, { one: 'two' }, 3, { four: 'five' }];
+        const arr2 = [1, 2, { one: 'two' }, 3, { four: 'five' }];
+        expect(fastIsEqual(arr1, arr2)).toBe(true);
+      });
+
+      it('should return false with different objects at the end', () => {
+        const arr1 = [1, 2, { one: 'two' }, 3, { four: 'five' }];
+        const arr2 = [1, 2, { one: 'two' }, 3, { four: 'six' }];
         expect(fastIsEqual(arr1, arr2)).toBe(false);
       });
     });
@@ -426,6 +672,30 @@ describe('fastIsEqual', () => {
 
         expect(fastIsEqual(map1, map2)).toBe(true);
       });
+
+      it('should return false for maps with completely disperate objects, primitive keys', () => {
+        const map1 = new Map([['one', { name: 'test' }]]);
+        const map2 = new Map([['two', { last: 12 }]]);
+        expect(fastIsEqual(map1, map2)).toBe(false);
+      });
+
+      it ('should return true for maps with matching objects, primitive keys', () => {
+        const map1 = new Map([['one', { name: 'test' }]]);
+        const map2 = new Map([['one', { name: 'test' }]]);
+        expect(fastIsEqual(map1, map2)).toBe(true);
+      });
+
+      it('should return false for maps with completely disperate objects, object keys', () => {
+        const map1 = new Map([[{ key: 'one' }, { name: 'test' }]]);
+        const map2 = new Map([[{ key: 'two' }, { last: 12 }]]);
+        expect(fastIsEqual(map1, map2)).toBe(false);
+      });
+
+      it('should return true for maps with matching objects, object keys', () => {
+        const map1 = new Map([[{ key: 'one' }, { name: 'test' }]]);
+        const map2 = new Map([[{ key: 'one' }, { name: 'test' }]]);
+        expect(fastIsEqual(map1, map2)).toBe(true);
+      });
     });
 
     describe('Set objects', () => {
@@ -511,11 +781,71 @@ describe('fastIsEqual', () => {
 
         expect(fastIsEqual(set1, set2)).toBe(true);
       });
+
+      it('should return false for one empty set', () => {
+        const set1 = new Set();
+        const set2 = new Set<number>([1, 2, 3]);
+        expect(fastIsEqual(set1, set2)).toBe(false);
+      });
+
+      it('should return true for matching empty sets', () => {
+        const set1 = new Set();
+        const set2 = new Set();
+        expect(fastIsEqual(set1, set2)).toBe(true);
+      });
+
+      it('should handle sets of completely disperate objects', () => {
+        const set1 = new Set([{ name: 'test' }]);
+        const set2 = new Set([{ last: 12 }]);
+        expect(fastIsEqual(set1, set2)).toBe(false);
+      });
     });
   });
 
   describe('Binary Data Types', () => {
     describe('ArrayBuffer', () => {
+      it('should return true for empty ArrayBuffers', () => {
+        const buffer1 = new ArrayBuffer();
+        const buffer2 = new ArrayBuffer();
+        expect(fastIsEqual(buffer1, buffer2)).toBe(true);
+      });
+
+      it('should return false for ArrayBuffers of different lengths', () => {
+        const buffer1 = new ArrayBuffer(4);
+        const buffer2 = new ArrayBuffer(3);
+        expect(fastIsEqual(buffer1, buffer2)).toBe(false);
+      });
+
+      it('should return false for different TypedArray views', () => {
+        const arr1 = new Uint8Array([1, 2, 3]);
+        const arr2 = new Uint16Array([1, 2, 3]);
+        expect(fastIsEqual(arr1, arr2)).toBe(false);
+      });
+
+      it('should return false for different array buffers', () => {
+        const arr1 = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+        const arr2 = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, -11, -12]);
+        expect(fastIsEqual(arr1.buffer, arr2.buffer)).toBe(false);
+      });
+
+      it('should return false for different larger array buffers', () => {
+        const arr1 = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]);
+        const arr2 = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, -16, 17]);
+        expect(fastIsEqual(arr1, arr2)).toBe(false);
+      });
+
+      it('should return false for different larger array buffers > 16', () => {
+        const arr1 = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]);
+        const arr2 = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, -17]);
+        expect(fastIsEqual(arr1, arr2)).toBe(false);
+      });
+
+      it('should return true for matching larger array buffers > 16', () => {
+        const arr1 = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]);
+        const arr2 = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]);
+        expect(fastIsEqual(arr1, arr2)).toBe(true);
+      });
+
       it('should handle ArrayBuffer comparison', () => {
         const buffer1 = new ArrayBuffer(8);
         const buffer2 = new ArrayBuffer(8);
@@ -570,6 +900,18 @@ describe('fastIsEqual', () => {
     });
 
     describe('TypedArrays', () => {
+      it('should return true for empty TypedArrays', () => {
+        const arr1 = new Uint8Array([]);
+        const arr2 = new Uint8Array([]);
+        expect(fastIsEqual(arr1, arr2)).toBe(true);
+      });
+
+      it('should return false for different TypedArray lengths', () => {
+        const arr1 = new Uint8Array([1, 2, 3]);
+        const arr2 = new Uint8Array([1, 2]);
+        expect(fastIsEqual(arr1, arr2)).toBe(false);
+      });
+
       it('should return true for identical TypedArrays', () => {
         const arr1 = new Uint8Array([1, 2, 3]);
         const arr2 = new Uint8Array([1, 2, 3]);
