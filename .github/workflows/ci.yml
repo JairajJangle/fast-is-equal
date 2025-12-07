@@ -51,16 +51,11 @@ jobs:
       - name: Run tests
         run: yarn test
 
-      - name: Generate coverage report
-        if: matrix.node-version == 22
-        run: yarn test --coverage
-
-      - name: Upload coverage to Codecov
-        if: matrix.node-version == 22
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          file: ./coverage/lcov.info
+      - name: Update Coverage Badge
+        # GitHub actions: default branch variable
+        # https://stackoverflow.com/questions/64781462/github-actions-default-branch-variable
+        if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        uses: we-cli/coverage-badge-action@main
 
   build:
     runs-on: ubuntu-latest
