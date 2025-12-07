@@ -1,3 +1,10 @@
+## [1.2.4](https://github.com/JairajJangle/fast-is-equal/compare/v1.2.3...v1.2.4) (2025-12-07)
+
+
+### Bug Fixes
+
+* **merge:** apply maintenance updates (deps, tests, ci) and trigger patch release ([3d9898e](https://github.com/JairajJangle/fast-is-equal/commit/3d9898ec2c8808d27f506dd376720e992fa0895c))
+
 ## [1.2.3](https://github.com/JairajJangle/fast-is-equal/compare/v1.2.2...v1.2.3) (2025-05-31)
 
 
