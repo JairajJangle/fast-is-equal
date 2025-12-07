@@ -349,8 +349,6 @@ function deepEqual(valA: any, valB: any, visited: Map<any, any>): boolean {
 
   // TypedArrays
   if (ArrayBuffer.isView(valA)) {
-    if (valA.constructor !== valB.constructor) return false;
-
     const arrA = valA as any;
     const arrB = valB as any;
     const len = arrA.length;
