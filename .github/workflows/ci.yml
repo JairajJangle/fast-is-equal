@@ -48,8 +48,8 @@ jobs:
       - name: Install dependencies
         run: yarn install
 
-      - name: Run tests
-        run: yarn test
+      - name: Run unit tests
+        run: yarn test:cov
 
       - name: Update Coverage Badge
         # GitHub actions: default branch variable
