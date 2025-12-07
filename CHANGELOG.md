@@ -1,11 +1,3 @@
-## [1.2.4](https://github.com/JairajJangle/fast-is-equal/compare/v1.2.3...v1.2.4) (2025-12-05)
-
-### Development Updates
-
-* add coverage to local test output and add tests to increase to 99%+
-* update devdeps
-* devenv node 22+
-
 ## [1.2.3](https://github.com/JairajJangle/fast-is-equal/compare/v1.2.2...v1.2.3) (2025-05-31)
 
 
