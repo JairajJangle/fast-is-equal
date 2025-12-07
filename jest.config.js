@@ -7,6 +7,7 @@ export default {
   moduleFileExtensions: ['ts', 'js', 'json', 'node'],
   collectCoverage: true,
   coverageDirectory: 'coverage',
+  coverageReporters: ['text', 'json-summary'],
   collectCoverageFrom: [
     'src/index.ts'
   ]
