@@ -93,8 +93,36 @@ The `package.json` file contains various scripts for common tasks:
 
 When you're sending a pull request:
 
-- Prefer small pull requests focused on one change.
-- Verify that tests are passing locally.
-- Review the documentation to make sure it looks good.
-- For pull requests that change the API or implementation, discuss with maintainers first by opening an issue.
+- Prefer small pull requests focused on one change
+- Verify that tests are passing
+- Add tests for your changes when applicable
+- If making performance improvements, include benchmark results
+- Review the documentation to make sure it looks good
+- Follow the pull request template when opening a pull request (if available)
+- For pull requests that change the API or implementation significantly, discuss with maintainers first by opening an issue
 
+### Performance Considerations
+
+This library is optimized for speed. When contributing:
+
+- **Benchmark your changes**: Run `yarn benchmark` before and after your changes
+- **Avoid unnecessary allocations**: Minimize object/array creation in hot paths
+- **Consider edge cases**: Ensure optimizations don't break correctness
+- **Profile if needed**: For significant changes, consider profiling with Node.js inspector
+
+### Testing Guidelines
+
+- Add test cases for new features or bug fixes
+- Include edge cases in your tests
+- Ensure tests are deterministic and don't rely on timing
+- Test coverage should remain high (aim for >95%)
+
+### Getting Help
+
+- 💬 Open an issue for bugs or feature requests
+- 📖 Check existing issues and pull requests before creating new ones
+- 🤝 Be respectful and constructive in all interactions
+
+---
+
+Thank you for contributing to fast-is-equal! 🚀
