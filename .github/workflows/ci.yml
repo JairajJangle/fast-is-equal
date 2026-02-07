@@ -8,59 +8,23 @@ on:
       - main
 
 jobs:
-  # TODO: Configure lint job in later release
-  # lint:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v4
-
-  #     - name: Setup Node.js
-  #       uses: actions/setup-node@v4
-  #       with:
-  #         node-version: "lts/*"
-  #         cache: 'yarn'
-
-  #     - name: Install dependencies
-  #       run: yarn install
-
-  #     - name: Lint files
-  #       run: yarn lint
-
-  #     - name: Typecheck files
-  #       run: yarn typecheck
-
   test:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [20, 22]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: 'yarn'
+      - name: Setup
+        uses: ./.github/actions/setup
 
-      - name: Install dependencies
-        run: yarn install
+      - name: Run unit tests
+        run: yarn test:cov
 
-      - name: Run tests
-        run: yarn test
-
-      - name: Generate coverage report
-        if: matrix.node-version == 20
-        run: yarn test --coverage
-
-      - name: Upload coverage to Codecov
-        if: matrix.node-version == 20
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          file: ./coverage/lcov.info
+      - name: Update Coverage Badge
+        # GitHub actions: default branch variable
+        # https://stackoverflow.com/questions/64781462/github-actions-default-branch-variable
+        if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        uses: we-cli/coverage-badge-action@main
 
   build:
     runs-on: ubuntu-latest
@@ -68,14 +32,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "lts/*"
-          cache: 'yarn'
-
-      - name: Install dependencies
-        run: yarn install
+      - name: Setup
+        uses: ./.github/actions/setup
 
       - name: Build package
         run: yarn build
@@ -93,23 +51,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0  # Ensures all tags are fetched
+
+      - name: Setup
+        uses: ./.github/actions/setup
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "lts/*"
-          registry-url: 'https://registry.npmjs.org/'
-          cache: 'yarn'
-
-      - name: Install dependencies
-        run: yarn install
-
-      - name: Verify the integrity of provenance attestations and registry signatures
-        run: yarn audit
 
       - name: Release
-        run: yarn semantic-release
+        run: npx semantic-release # Run semantic-release to manage versioning and publishing
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: true
+    

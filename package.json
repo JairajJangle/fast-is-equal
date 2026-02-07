@@ -82,6 +82,7 @@
       "@commitlint/config-conventional"
     ]
   },
+  "packageManager": "yarn@4.9.2",
   "release-it": {
     "git": {
       "commitMessage": "chore: release ${version}",
