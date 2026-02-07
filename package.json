@@ -52,7 +52,6 @@
     "test": "jest",
     "test:cov": "jest --coverage --maxWorkers=2 --coverageReporters=\"json-summary\" --coverageReporters=\"html\"",
     "build": "rimraf dist && tsc",
-    "prepublishOnly": "npm run build",
     "benchmark": "ts-node --project tsconfig.node.json benchmarks/fastIsEqual.benchmark.ts"
   },
   "files": [
@@ -114,6 +113,5 @@
       "type": "individual",
       "url": "https://ko-fi.com/futurejj"
     }
-  ],
-  "packageManager": "yarn@1.22.22"
+  ]
 }

@@ -1,3 +1,8 @@
 node_modules/
 dist/
 coverage/
+
+# Yarn
+.yarn/
+.pnp.*
+.yarnrc.yml
