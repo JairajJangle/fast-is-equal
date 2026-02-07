@@ -1,3 +1,10 @@
+## [1.2.5](https://github.com/JairajJangle/fast-is-equal/compare/v1.2.4...v1.2.5) (2026-02-07)
+
+
+### Bug Fixes
+
+* maintenance - upgraded dev deps and migrated to yarn berry ([9dedf42](https://github.com/JairajJangle/fast-is-equal/commit/9dedf42da21e3277ace451a2431410db80f631ac))
+
 ## [1.2.4](https://github.com/JairajJangle/fast-is-equal/compare/v1.2.3...v1.2.4) (2025-12-07)
 
 
