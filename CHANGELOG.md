@@ -1,3 +1,10 @@
+## [1.2.6](https://github.com/JairajJangle/fast-is-equal/compare/v1.2.5...v1.2.6) (2026-02-09)
+
+
+### Bug Fixes
+
+* **ci:** missing prepublish script resulting in no dist folder in published files [#8](https://github.com/JairajJangle/fast-is-equal/issues/8) ([a0a5b2c](https://github.com/JairajJangle/fast-is-equal/commit/a0a5b2c510ad0a7f98fcba79b1e37520d5a02926))
+
 ## [1.2.5](https://github.com/JairajJangle/fast-is-equal/compare/v1.2.4...v1.2.5) (2026-02-07)
 
 
