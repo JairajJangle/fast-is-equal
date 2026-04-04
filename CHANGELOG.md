@@ -1,3 +1,10 @@
+## [1.2.7](https://github.com/JairajJangle/fast-is-equal/compare/v1.2.6...v1.2.7) (2026-04-04)
+
+
+### Bug Fixes
+
+* **deps:** housekeeping - upgraded dev deps ([1b1da51](https://github.com/JairajJangle/fast-is-equal/commit/1b1da51becac9848407065c5a23a93fec9eaa18f))
+
 ## [1.2.6](https://github.com/JairajJangle/fast-is-equal/compare/v1.2.5...v1.2.6) (2026-02-09)
 
 
