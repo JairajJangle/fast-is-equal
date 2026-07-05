@@ -533,6 +533,112 @@ describe('fastIsEqual', () => {
       });
     });
 
+    describe('Sparse arrays with elements after a hole', () => {
+      it('should compare primitive elements after a leading hole', () => {
+        expect(fastIsEqual([, 'a'], [, 'a'])).toBe(true);
+        expect(fastIsEqual([, 'a'], [, 'b'])).toBe(false);
+      });
+
+      it('should handle NaN elements after a leading hole', () => {
+        expect(fastIsEqual([, NaN], [, NaN])).toBe(true);
+        expect(fastIsEqual([, NaN], [, 0])).toBe(false);
+      });
+
+      it('should return false for type mismatch after a leading hole', () => {
+        expect(fastIsEqual([, 1], [, '1'])).toBe(false);
+      });
+
+      it('should return false for null vs value after a leading hole', () => {
+        expect(fastIsEqual([, null], [, 'x'])).toBe(false);
+      });
+
+      it('should deep-compare object elements after a leading hole', () => {
+        expect(fastIsEqual([, { x: 1 }], [, { x: 1 }])).toBe(true);
+        expect(fastIsEqual([, { x: 1 }], [, { x: 2 }])).toBe(false);
+      });
+
+      it('should handle elements after a hole in large arrays', () => {
+        const arr1 = [1, 2, 3, 4, 5, 6, 7, 8, , { x: 1 }, NaN, 'tail'];
+        const arr2 = [1, 2, 3, 4, 5, 6, 7, 8, , { x: 1 }, NaN, 'tail'];
+        expect(fastIsEqual(arr1, arr2)).toBe(true);
+        const arr3 = [1, 2, 3, 4, 5, 6, 7, 8, , { x: 1 }, NaN, 'diff'];
+        expect(fastIsEqual(arr1, arr3)).toBe(false);
+      });
+    });
+
+    describe('Large DataViews', () => {
+      const dataViewOf = (bytes: number[]) => new DataView(new Uint8Array(bytes).buffer);
+
+      it('should compare DataViews of 16+ bytes', () => {
+        const bytes = Array.from({ length: 64 }, (_, i) => i % 256);
+        expect(fastIsEqual(dataViewOf(bytes), dataViewOf(bytes))).toBe(true);
+      });
+
+      it('should detect a difference inside an unrolled chunk', () => {
+        const bytes = Array.from({ length: 64 }, (_, i) => i % 256);
+        const changed = bytes.slice();
+        changed[3] = 255;
+        expect(fastIsEqual(dataViewOf(bytes), dataViewOf(changed))).toBe(false);
+      });
+
+      it('should detect a difference in the remainder after unrolling', () => {
+        const bytes = Array.from({ length: 20 }, (_, i) => i % 256);
+        const changed = bytes.slice();
+        changed[18] = 255; // beyond the last full 8-byte chunk
+        expect(fastIsEqual(dataViewOf(bytes), dataViewOf(changed))).toBe(false);
+      });
+    });
+
+    describe('Null elements in small arrays', () => {
+      it('should return false for value vs null in either order', () => {
+        expect(fastIsEqual(['x'], [null])).toBe(false);
+        expect(fastIsEqual([null], ['x'])).toBe(false);
+      });
+    });
+
+    describe('Sibling aliasing', () => {
+      it('should distinguish distinct-but-equal siblings from a shared reference', () => {
+        const shared = { v: 1 };
+        const distinct = { x: { v: 1 }, y: { v: 1 } };
+        const aliased = { x: shared, y: shared };
+        expect(fastIsEqual(distinct, aliased)).toBe(false);
+        expect(fastIsEqual(aliased, distinct)).toBe(false);
+      });
+    });
+
+    describe('Collections nested inside objects', () => {
+      it('should compare Maps with object values nested in objects', () => {
+        const make = () => ({ m: new Map([['k', { v: 1 }]]) });
+        expect(fastIsEqual(make(), make())).toBe(true);
+        expect(fastIsEqual(make(), { m: new Map([['k', { v: 2 }]]) })).toBe(false);
+      });
+
+      it('should compare Sets with object members nested in objects', () => {
+        const make = () => ({ s: new Set([{ v: 1 }, 'prim']) });
+        expect(fastIsEqual(make(), make())).toBe(true);
+        expect(fastIsEqual(make(), { s: new Set([{ v: 2 }, 'prim']) })).toBe(false);
+      });
+    });
+
+    describe('Class instances', () => {
+      class Point {
+        constructor(public x: number, public y: number) { }
+      }
+
+      it('should compare equal class instances by own properties', () => {
+        expect(fastIsEqual(new Point(1, 2), new Point(1, 2))).toBe(true);
+      });
+
+      it('should return false for unequal class instances', () => {
+        expect(fastIsEqual(new Point(1, 2), new Point(1, 3))).toBe(false);
+      });
+
+      it('should compare class instances nested in objects', () => {
+        expect(fastIsEqual({ p: new Point(1, 2) }, { p: new Point(1, 2) })).toBe(true);
+        expect(fastIsEqual({ p: new Point(1, 2) }, { p: new Point(9, 9) })).toBe(false);
+      });
+    });
+
     describe('Arrays with circular references', () => {
       it('should handle arrays with circular references', () => {
         const arr1: any[] = [1, 2];
