@@ -488,6 +488,49 @@ describe('fastIsEqual', () => {
         const arr2 = [1, , 3, , 5];
         expect(fastIsEqual(arr1, arr2)).toBe(true);
       });
+
+      it('should distinguish hole from explicit undefined in large arrays', () => {
+        const arr1 = [1, 2, 3, 4, 5, 6, 7, 8, , 10]; // hole at index 8
+        const arr2 = [1, 2, 3, 4, 5, 6, 7, 8, undefined, 10];
+        expect(fastIsEqual(arr1, arr2)).toBe(false);
+        expect(fastIsEqual(arr2, arr1)).toBe(false);
+      });
+
+      it('should distinguish hole from explicit undefined at the last index', () => {
+        const arr1 = [1, 2, 3, 4, 5, 6, 7, 8, 9, ,]; // hole at index 9
+        const arr2 = [1, 2, 3, 4, 5, 6, 7, 8, 9, undefined];
+        expect(arr1.length).toBe(10);
+        expect(fastIsEqual(arr1, arr2)).toBe(false);
+        expect(fastIsEqual(arr2, arr1)).toBe(false);
+      });
+
+      it('should treat matching holes in large arrays as equal', () => {
+        const arr1 = [1, 2, 3, 4, 5, 6, 7, 8, , 10];
+        const arr2 = [1, 2, 3, 4, 5, 6, 7, 8, , 10];
+        expect(fastIsEqual(arr1, arr2)).toBe(true);
+      });
+
+      it('should distinguish hole from explicit undefined in small arrays', () => {
+        const arr1 = [1, , 3];
+        const arr2 = [1, undefined, 3];
+        expect(fastIsEqual(arr1, arr2)).toBe(false);
+        expect(fastIsEqual(arr2, arr1)).toBe(false);
+      });
+    });
+
+    describe('Objects with undefined values', () => {
+      it('should return false for same-size objects with different keys holding undefined', () => {
+        expect(fastIsEqual({ a: undefined }, { b: undefined })).toBe(false);
+        expect(fastIsEqual({ b: undefined }, { a: undefined })).toBe(false);
+      });
+
+      it('should return true for objects with same key holding undefined', () => {
+        expect(fastIsEqual({ a: undefined }, { a: undefined })).toBe(true);
+      });
+
+      it('should return false when undefined value masks a missing key among others', () => {
+        expect(fastIsEqual({ a: 1, b: undefined }, { a: 1, c: undefined })).toBe(false);
+      });
     });
 
     describe('Arrays with circular references', () => {

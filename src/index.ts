@@ -19,6 +19,7 @@ const arrayBufferConstructor = ArrayBuffer;
 const promiseConstructor = Promise;
 const errorConstructor = Error;
 const dataViewConstructor = DataView;
+const objectConstructor = Object;
 
 export function fastIsEqual(a: any, b: any) {
   // Fast path for strict equality
@@ -32,13 +33,15 @@ export function fastIsEqual(a: any, b: any) {
 
   // Type mismatch = not equal (avoid second typeof if possible)
   if (typeA === TYPEOF_NUMBER) {
-    // Optimize number comparison - avoid typeof b when possible
-    return typeof b === TYPEOF_NUMBER && isNaN(a) && isNaN(b);
+    // Only NaN pairs survive a failed === between numbers; x !== x is the
+    // cheapest NaN test (no call)
+    return typeof b === TYPEOF_NUMBER && a !== a && b !== b;
   }
 
-  if (typeA === TYPEOF_STRING || typeA === TYPEOF_BOOLEAN || typeA === TYPEOF_FUNCTION || typeA === TYPEOF_SYMBOL || typeA === TYPEOF_BIGINT) {
-    return false; // We know a !== b from first check
-  }
+  // undefined is excluded by the null check above, so any remaining
+  // non-object type (string/boolean/function/symbol/bigint) can't be equal -
+  // we know a !== b from the first check
+  if (typeA !== TYPEOF_OBJECT) return false;
 
   // Now check if b is also object
   if (typeof b !== TYPEOF_OBJECT) return false;
@@ -63,7 +66,43 @@ export function fastIsEqual(a: any, b: any) {
 
     // Small arrays - unroll loop with minimal overhead
     if (len < 8) {
-      for (let i = 0; i < len; i++) {
+      // Phase 1 - dense fast loop, no `in` operator at all
+      let i = 0;
+      for (; i < len; i++) {
+        const elemA = a[i];
+        const elemB = b[i];
+
+        // Possible hole or explicit undefined - fall to sparse-aware loop for the rest
+        if (elemA === undefined || elemB === undefined) break;
+
+        // Fast path for identical elements
+        if (elemA === elemB) continue;
+
+        // Null check (null still possible - only undefined breaks out)
+        if (elemA == null || elemB == null) return false;
+
+        // Type check
+        const elemTypeA = typeof elemA;
+        if (elemTypeA !== typeof elemB) return false;
+
+        // Number special case
+        if (elemTypeA === TYPEOF_NUMBER) {
+          if (!(isNaN(elemA) && isNaN(elemB))) return false;
+          continue;
+        }
+
+        // Primitive comparison
+        if (elemTypeA !== TYPEOF_OBJECT && elemTypeA !== TYPEOF_FUNCTION) {
+          return false;
+        }
+
+        // Need deep comparison - visited map allocated lazily on demand
+        if (!deepEqual(elemA, elemB, null)) return false;
+      }
+      if (i === len) return true;
+
+      // Phase 2 - sparse-aware remainder, baseline per-element logic
+      for (; i < len; i++) {
         // Sparse array check
         const hasA = i in a;
         if (hasA !== (i in b)) return false;
@@ -93,14 +132,14 @@ export function fastIsEqual(a: any, b: any) {
           return false;
         }
 
-        // Need deep comparison - use minimal visited map
-        if (!deepEqual(elemA, elemB, new Map())) return false;
+        // Need deep comparison - visited map allocated lazily on demand
+        if (!deepEqual(elemA, elemB, null)) return false;
       }
       return true;
     }
 
     // Large arrays - use deep equal
-    return deepEqual(a, b, new Map());
+    return deepEqual(a, b, null);
   }
 
   // Handle built-in types inline for common cases
@@ -113,10 +152,10 @@ export function fastIsEqual(a: any, b: any) {
   }
 
   // For all other objects, use deep comparison
-  return deepEqual(a, b, new Map());
+  return deepEqual(a, b, null);
 }
 
-function deepEqual(valA: any, valB: any, visited: Map<any, any>): boolean {
+function deepEqual(valA: any, valB: any, visited: Map<any, any> | null): boolean {
   // Fast equality check
   if (valA === valB) return true;
 
@@ -136,14 +175,23 @@ function deepEqual(valA: any, valB: any, visited: Map<any, any>): boolean {
     return false;
   }
 
-  // Check visited - optimized with single lookup
-  const visitedVal = visited.get(valA);
-  if (visitedVal !== undefined) return visitedVal === valB;
-  if (visited.has(valB)) return false;
+  // Check visited - only when a map has actually been allocated
+  if (visited !== null) {
+    const visitedVal = visited.get(valA);
+    if (visitedVal !== undefined) return visitedVal === valB;
+    if (visited.has(valB)) return false;
+  }
 
   // Constructor check
   const ctorA = valA.constructor;
   if (ctorA !== valB.constructor) return false;
+
+  // Fast path for plain objects - the most common recursion target.
+  // ({}).constructor is Object; Object.create(null) has undefined constructor.
+  // Everything else falls through the dispatch chain below.
+  if (ctorA === objectConstructor || ctorA === undefined) {
+    return equalPlainObjects(valA, valB, visited);
+  }
 
   // Date - inline comparison
   if (ctorA === dateConstructor) {
@@ -165,15 +213,38 @@ function deepEqual(valA: any, valB: any, visited: Map<any, any>): boolean {
     const len = valA.length;
     if (len !== valB.length) return false;
 
-    // Mark visited early
+    // Mark visited early - allocate the map lazily on first use
+    if (visited === null) visited = new Map();
     visited.set(valA, valB);
     visited.set(valB, valA);
 
     // Empty arrays
     if (len === 0) return true;
 
-    // Optimized loop - check primitives first for early exit
-    for (let i = 0; i < len; i++) {
+    // Phase 1 - dense fast loop, no `in` operator at all
+    let i = 0;
+    for (; i < len; i++) {
+      const elemA = valA[i];
+      const elemB = valB[i];
+
+      // Fast path for identical elements
+      if (elemA === elemB) {
+        // Only an undefined pair can hide a hole - disambiguate in phase 2
+        if (elemA === undefined) break;
+        continue;
+      }
+
+      // Possible hole or explicit undefined - fall to sparse-aware loop for the rest
+      if (elemA === undefined || elemB === undefined) break;
+
+      if (!deepEqual(elemA, elemB, visited)) {
+        return false;
+      }
+    }
+    if (i === len) return true;
+
+    // Phase 2 - sparse-aware remainder, baseline per-element logic
+    for (; i < len; i++) {
       // Sparse array handling
       const hasA = i in valA;
       if (hasA !== (i in valB)) return false;
@@ -199,6 +270,8 @@ function deepEqual(valA: any, valB: any, visited: Map<any, any>): boolean {
     // Empty maps
     if (mapA.size === 0) return true;
 
+    // Allocate the visited map lazily on first use
+    if (visited === null) visited = new Map();
     visited.set(valA, valB);
     visited.set(valB, valA);
 
@@ -237,7 +310,8 @@ function deepEqual(valA: any, valB: any, visited: Map<any, any>): boolean {
     // Empty sets
     if (setA.size === 0) return true;
 
-    // Early visited check
+    // Early visited check - allocate the map lazily on first use
+    if (visited === null) visited = new Map();
     visited.set(valA, valB);
     visited.set(valB, valA);
 
@@ -283,7 +357,7 @@ function deepEqual(valA: any, valB: any, visited: Map<any, any>): boolean {
       let found = false;
       for (let j = 0; j < objectsB.length; j++) {
         if (!used[j]) {
-          const newVisited = new Map(visited);
+          const newVisited = visited === null ? new Map() : new Map(visited);
           if (deepEqual(valA, objectsB[j], newVisited)) {
             used[j] = 1;
             found = true;
@@ -340,8 +414,38 @@ function deepEqual(valA: any, valB: any, visited: Map<any, any>): boolean {
     if (viewA.byteLength !== viewB.byteLength || viewA.byteOffset !== viewB.byteOffset) {
       return false;
     }
-    // Compare the underlying buffer data
-    for (let i = 0; i < viewA.byteLength; i++) {
+    // Compare the underlying buffer data - hoist byteLength accessor
+    const n = viewA.byteLength;
+
+    // Large views: wrap in Uint8Array and compare with unrolled loop.
+    // Byte reads through a Uint8Array view of the same buffer region are
+    // value-identical to getUint8 calls, so semantics are unchanged.
+    if (n >= 16) {
+      const bytesA = new Uint8Array(viewA.buffer, viewA.byteOffset, n);
+      const bytesB = new Uint8Array(viewB.buffer, viewB.byteOffset, n);
+
+      let i = 0;
+      const unrollEnd = n - 7;
+      for (; i < unrollEnd; i += 8) {
+        if (bytesA[i] !== bytesB[i] ||
+          bytesA[i + 1] !== bytesB[i + 1] ||
+          bytesA[i + 2] !== bytesB[i + 2] ||
+          bytesA[i + 3] !== bytesB[i + 3] ||
+          bytesA[i + 4] !== bytesB[i + 4] ||
+          bytesA[i + 5] !== bytesB[i + 5] ||
+          bytesA[i + 6] !== bytesB[i + 6] ||
+          bytesA[i + 7] !== bytesB[i + 7]) {
+          return false;
+        }
+      }
+      for (; i < n; i++) {
+        if (bytesA[i] !== bytesB[i]) return false;
+      }
+      return true;
+    }
+
+    // Small views: per-byte reads avoid two typed-array allocations
+    for (let i = 0; i < n; i++) {
       if (viewA.getUint8(i) !== viewB.getUint8(i)) return false;
     }
     return true;
@@ -380,7 +484,14 @@ function deepEqual(valA: any, valB: any, visited: Map<any, any>): boolean {
     return true;
   }
 
-  // Plain objects - highly optimized
+  // Class instances etc. end up in the same plain-object comparison
+  return equalPlainObjects(valA, valB, visited);
+}
+
+// Plain objects - highly optimized
+function equalPlainObjects(valA: any, valB: any, visited: Map<any, any> | null): boolean {
+  // Allocate the visited map lazily on first use
+  if (visited === null) visited = new Map();
   visited.set(valA, valB);
   visited.set(valB, valA);
 
@@ -410,12 +521,9 @@ function deepEqual(valA: any, valB: any, visited: Map<any, any>): boolean {
     return true;
   }
 
-  // Optimized property checking - batch primitive checks
+  // Optimized property checking - read values first, defer the "in" probe
   for (let i = 0; i < keysALen; i++) {
     const key = keysA[i];
-    // Use in operator for fastest check
-    if (!(key in valB)) return false;
-
     const propA = valA[key];
     const propB = valB[key];
 
@@ -430,6 +538,10 @@ function deepEqual(valA: any, valB: any, visited: Map<any, any>): boolean {
       } else {
         return false;
       }
+    } else if (propA === undefined && !(key in valB)) {
+      // Both reads were undefined - distinguish a genuine undefined value
+      // on B from a missing key masquerading as undefined
+      return false;
     }
   }
 
