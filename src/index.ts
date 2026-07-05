@@ -357,7 +357,9 @@ function deepEqual(valA: any, valB: any, visited: Map<any, any> | null): boolean
       let found = false;
       for (let j = 0; j < objectsB.length; j++) {
         if (!used[j]) {
-          const newVisited = visited === null ? new Map() : new Map(visited);
+          // visited is always non-null here - the Set branch marks the pair
+          // (allocating on demand) before object matching begins
+          const newVisited = new Map(visited);
           if (deepEqual(valA, objectsB[j], newVisited)) {
             used[j] = 1;
             found = true;
@@ -504,18 +506,15 @@ function equalPlainObjects(valA: any, valB: any, visited: Map<any, any> | null):
 
   // Empty objects - check symbols
   if (keysALen === 0) {
-    const checkSymbols = Object.getOwnPropertySymbols !== undefined;
-    if (checkSymbols) {
-      const symbolsA = Object.getOwnPropertySymbols(valA);
-      if (symbolsA.length !== Object.getOwnPropertySymbols(valB).length) {
+    const symbolsA = Object.getOwnPropertySymbols(valA);
+    if (symbolsA.length !== Object.getOwnPropertySymbols(valB).length) {
+      return false;
+    }
+    // Check symbol properties
+    for (let i = 0; i < symbolsA.length; i++) {
+      const sym = symbolsA[i];
+      if (!(sym in valB) || !deepEqual(valA[sym], valB[sym], visited)) {
         return false;
-      }
-      // Check symbol properties
-      for (let i = 0; i < symbolsA.length; i++) {
-        const sym = symbolsA[i];
-        if (!(sym in valB) || !deepEqual(valA[sym], valB[sym], visited)) {
-          return false;
-        }
       }
     }
     return true;
@@ -545,20 +544,17 @@ function equalPlainObjects(valA: any, valB: any, visited: Map<any, any> | null):
     }
   }
 
-  // Check for symbols only if likely to have them
-  const checkSymbols = Object.getOwnPropertySymbols !== undefined;
-  if (checkSymbols) {
-    const symbolsA = Object.getOwnPropertySymbols(valA);
-    if (symbolsA.length > 0) {
-      if (symbolsA.length !== Object.getOwnPropertySymbols(valB).length) {
+  // Check for symbols only if present
+  const symbolsA = Object.getOwnPropertySymbols(valA);
+  if (symbolsA.length > 0) {
+    if (symbolsA.length !== Object.getOwnPropertySymbols(valB).length) {
+      return false;
+    }
+    // Check symbol properties
+    for (let i = 0; i < symbolsA.length; i++) {
+      const sym = symbolsA[i];
+      if (!(sym in valB) || !deepEqual(valA[sym], valB[sym], visited)) {
         return false;
-      }
-      // Check symbol properties
-      for (let i = 0; i < symbolsA.length; i++) {
-        const sym = symbolsA[i];
-        if (!(sym in valB) || !deepEqual(valA[sym], valB[sym], visited)) {
-          return false;
-        }
       }
     }
   }
