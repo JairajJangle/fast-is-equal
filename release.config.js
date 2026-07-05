@@ -3,7 +3,14 @@ module.exports = {
     'main'
   ],
   plugins: [
-    '@semantic-release/commit-analyzer', // Analyzes commits for version bumping
+    [
+      '@semantic-release/commit-analyzer', // Analyzes commits for version bumping
+      {
+        releaseRules: [
+          { type: 'perf', release: 'minor' } // perf commits bump minor (default is patch); other types keep default rules
+        ]
+      }
+    ],
     '@semantic-release/release-notes-generator', // Generates release notes
     '@semantic-release/changelog', // Generates the changelog
     [
