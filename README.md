@@ -7,10 +7,10 @@
 
 ## Why fast-is-equal?
 
-- 🚀 **Lightning Speed**: Up to **55.84x faster** than Lodash's `isEqual` (average **11.73x faster** across 49 test cases).
+- 🚀 **Lightning Speed**: Up to **64.53x faster** than Lodash's `isEqual` (average **13.21x faster** across 49 test cases).
 - 🪶 **Lightweight**: Dependency-free, minimal footprint.
 - 🔄 **Versatile**: Handles primitives, objects, arrays, Maps, Sets, typed arrays, circular references, and more.
-- 🏆 **Proven**: Outperforms Lodash in **93.9%** of benchmark cases.
+- 🏆 **Proven**: Outperforms Lodash in **98%** of benchmark cases.
 
 ## Installation
 
@@ -42,34 +42,34 @@ console.log(fastIsEqual([1, 2], [1, 3])); // false
 
 ### Key Highlights
 
-- **Average Speed**: `fastIsEqual` is **11.73x faster** (0.000172 ms vs. 0.002013 ms).
-- **Win Rate**: Outperforms Lodash in **46/49 cases (93.9%)**.
-- **Peak Performance**: Up to **55.84x faster** for large Sets.
+- **Average Speed**: `fastIsEqual` is **13.21x faster** (0.000147 ms vs. 0.001941 ms).
+- **Win Rate**: Outperforms Lodash in **48/49 cases (98.0%)**.
+- **Peak Performance**: Up to **64.53x faster** for large Sets.
 
 ### Top 10 Performance Gains
 
 | Test Case               | fastIsEqual (ms) | Lodash isEqual (ms) | Speed Boost  |
 | ----------------------- | ---------------- | ------------------- | ------------ |
-| Large Set (100 items)   | 0.000673         | 0.037564            | **55.84x** 🚀 |
-| Map vs Set              | 0.000018         | 0.000485            | **26.52x** 🚀 |
-| Large Map (50 entries)  | 0.001059         | 0.025756            | **24.32x** 🚀 |
-| Map with primitives     | 0.000092         | 0.001487            | **16.09x** 🚀 |
-| Map (unequal)           | 0.000092         | 0.001406            | **15.29x** 🚀 |
-| Large TypedArray (1000) | 0.000944         | 0.013165            | **13.95x** 🚀 |
-| ArrayBuffer (small)     | 0.000092         | 0.001263            | **13.74x** 🚀 |
-| Empty Set               | 0.000058         | 0.000691            | **11.96x** 🚀 |
-| Empty Map               | 0.000058         | 0.000684            | **11.84x** 🚀 |
-| Set of strings          | 0.000082         | 0.000940            | **11.51x** 🚀 |
+| Large Set (100 items)   | 0.000585         | 0.037756            | **64.53x** 🚀 |
+| Large Map (50 entries)  | 0.000912         | 0.025252            | **27.70x** 🚀 |
+| Map vs Set              | 0.000018         | 0.000469            | **26.45x** 🚀 |
+| ArrayBuffer (small)     | 0.000068         | 0.001242            | **18.40x** 🚀 |
+| Empty Map               | 0.000037         | 0.000661            | **18.04x** 🚀 |
+| Empty Set               | 0.000037         | 0.000668            | **17.96x** 🚀 |
+| Map with primitives     | 0.000081         | 0.001405            | **17.27x** 🚀 |
+| Uint8Array              | 0.000038         | 0.000654            | **17.08x** 🚀 |
+| Map (unequal)           | 0.000080         | 0.001316            | **16.41x** 🚀 |
+| Float32Array            | 0.000041         | 0.000652            | **15.72x** 🚀 |
 
 ### Performance Across Categories
 
 - **Primitives**: Competitive performance with smart optimizations for edge cases like NaN
-- **Objects**: 1.59x–2.87x faster, with best gains on simple and nested structures
-- **Arrays**: 1.24x–4.38x faster, excelling at primitive arrays and sparse arrays
-- **TypedArrays**: 11.30x–13.95x faster, dramatically outperforming on all variants
-- **Special Objects**: 8.63x–10.25x faster for Dates and RegExp
-- **Collections**: 10.84x–55.84x faster for Maps and Sets, with exceptional gains on large collections
-- **Circular References**: 3.04x–3.72x faster with optimized cycle detection
+- **Objects**: 1.45x–3.02x faster, with best gains on simple and nested structures
+- **Arrays**: 2.40x–4.06x faster, excelling at primitive arrays and sparse arrays
+- **TypedArrays**: 12.62x–17.08x faster, dramatically outperforming on all variants
+- **Special Objects**: 9.43x–10.95x faster for Dates and RegExp
+- **Collections**: 11.34x–64.53x faster for Maps and Sets, with exceptional gains on large collections
+- **Circular References**: 3.48x–3.87x faster with optimized cycle detection
 
 ### Detailed Benchmark Results
 
@@ -77,13 +77,11 @@ Run `yarn benchmark` or `npm run benchmark` to test locally. Full results availa
 
 #### Edge Cases Where Lodash Wins
 
-Only 3 cases where Lodash marginally outperforms (by less than 5%):
+Only 1 case where Lodash marginally outperforms:
 
-- String vs Number: 0.95x slower
-- Large Numbers: 0.99x slower
-- Boolean vs Number: 0.99x slower
+- Strings: 0.85x slower
 
-These represent cross-type comparisons with negligible real-world impact.
+This is a ~5-nanosecond comparison at the benchmark's measurement resolution, with negligible real-world impact.
 
 ## Features
 
