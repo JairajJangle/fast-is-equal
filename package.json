@@ -1,6 +1,6 @@
 {
   "name": "fast-is-equal",
-  "version": "1.2.7",
+  "version": "1.3.0",
   "description": "Blazing-fast equality checks, minus the baggage. A lean, standalone alternative to Lodash's isEqual—because speed matters.",
   "keywords": [
     "deep-equal",

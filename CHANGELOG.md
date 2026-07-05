@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/JairajJangle/fast-is-equal/compare/v1.2.7...v1.3.0) (2026-07-05)
+
+
+### Performance Improvements
+
+* cut allocations and checks in hot paths ([15eaaa0](https://github.com/JairajJangle/fast-is-equal/commit/15eaaa01c11ec810f2b8dec05ac1ebf3997f5467))
+
 ## [1.2.7](https://github.com/JairajJangle/fast-is-equal/compare/v1.2.6...v1.2.7) (2026-04-04)
 
 
