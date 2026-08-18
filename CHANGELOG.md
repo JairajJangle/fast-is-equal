@@ -1,3 +1,10 @@
+## [1.3.2](https://github.com/JairajJangle/fast-is-equal/compare/v1.3.1...v1.3.2) (2026-08-18)
+
+
+### Bug Fixes
+
+* **deps:** resolve dependabot security alerts ([5c25135](https://github.com/JairajJangle/fast-is-equal/commit/5c2513501420228cf06d6cd2addd71a0f77f3f0f))
+
 ## [1.3.1](https://github.com/JairajJangle/fast-is-equal/compare/v1.3.0...v1.3.1) (2026-07-05)
 
 # [1.3.0](https://github.com/JairajJangle/fast-is-equal/compare/v1.2.7...v1.3.0) (2026-07-05)
