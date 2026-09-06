@@ -1,3 +1,10 @@
+## [1.3.3](https://github.com/JairajJangle/fast-is-equal/compare/v1.3.2...v1.3.3) (2026-09-06)
+
+
+### Bug Fixes
+
+* **deps:** bump fast-uri to 3.1.7 and regenerate lockfile ([4126104](https://github.com/JairajJangle/fast-is-equal/commit/41261046aafbd4dc7c8964ce0c1b5ff3eaaaa740))
+
 ## [1.3.2](https://github.com/JairajJangle/fast-is-equal/compare/v1.3.1...v1.3.2) (2026-08-18)
 
 
