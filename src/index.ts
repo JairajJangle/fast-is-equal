@@ -55,6 +55,16 @@ const TRACK_TOP = 2;
 const TRACK_VERIFIED = 3;
 const TRACK_FIRST = 4;
 
+// Last pair of objects proven equal during the current call. A structure
+// that reuses one object in several places (a shared default, a repeated
+// config) compares it once instead of once per use. The fact is only reused
+// while no cycle has been met in this call: an equality proved under a cycle
+// assumption is not safe to reuse elsewhere. Reset at the start of each call,
+// since objects may be mutated between calls.
+let memoA: unknown = null;
+let memoB: unknown = null;
+let memoOff = false;
+
 // Nesting depth, in pairs, up to which the cycle check scans the stack.
 // Deeper comparisons switch to a Map index so the check stays O(1).
 const DEEP_PAIRS = 24;
@@ -168,6 +178,11 @@ export function fastIsEqual(a: any, b: any) {
   // Constructor check
   const aCtor = a.constructor;
   if (aCtor !== b.constructor) return false;
+
+  // New call: forget the previous call's proven pair
+  memoA = null;
+  memoB = null;
+  memoOff = false;
 
   // Fast path for arrays - highly optimized
   if (aIsArray) {
@@ -311,7 +326,10 @@ function deepEqualObjects(valA: any, valB: any, visited: Tracker | null): boolea
     const indexA = visited[TRACK_INDEX_A];
     if (indexA === null) {
       for (let k = top - 2; k >= TRACK_FIRST; k -= 2) {
-        if (visited[k] === valA) return visited[k + 1] === valB;
+        if (visited[k] === valA) {
+          memoOff = true;
+          return visited[k + 1] === valB;
+        }
         if (visited[k + 1] === valB) return false;
       }
     } else {
@@ -319,10 +337,14 @@ function deepEqualObjects(valA: any, valB: any, visited: Tracker | null): boolea
       // the common cycle and are cheaper to find by looking than by hashing
       const stop = top - 2 * NEAR_PAIRS;
       for (let k = top - 2; k >= stop && k >= TRACK_FIRST; k -= 2) {
-        if (visited[k] === valA) return visited[k + 1] === valB && noDuplicateB(visited);
+        if (visited[k] === valA) {
+          memoOff = true;
+          return visited[k + 1] === valB && noDuplicateB(visited);
+        }
       }
       const k = indexA.get(valA);
       if (k !== undefined && k < top && visited[k] === valA) {
+        memoOff = true;
         return visited[k + 1] === valB && noDuplicateB(visited);
       }
     }
@@ -395,12 +417,19 @@ function deepEqualObjects(valA: any, valB: any, visited: Tracker | null): boolea
         return false;
       }
 
+      // Same pair as the last one proven equal - a shared element
+      if (elemA === memoA && elemB === memoB) continue;
+
       if (!entered) {
         visited = enter(visited, valA, valB);
         entered = true;
       }
       if (!deepEqual(elemA, elemB, visited)) {
         return false;
+      }
+      if (!memoOff) {
+        memoA = elemA;
+        memoB = elemB;
       }
     }
 
@@ -754,11 +783,19 @@ function equalPlainObjects(valA: any, valB: any, visited: Tracker | null): boole
       if (propTypeA === TYPEOF_OBJECT) {
         // An object can only equal another non-null object
         if (propA === null || propB === null || typeof propB !== TYPEOF_OBJECT) return false;
+
+        // Same pair as the last one proven equal - a shared value
+        if (propA === memoA && propB === memoB) continue;
+
         if (!entered) {
           visited = enter(visited, valA, valB);
           entered = true;
         }
         if (!deepEqualObjects(propA, propB, visited)) return false;
+        if (!memoOff) {
+          memoA = propA;
+          memoB = propB;
+        }
       } else if (propTypeA === TYPEOF_NUMBER) {
         if (!(isNaN(propA) && isNaN(propB))) return false;
       } else {

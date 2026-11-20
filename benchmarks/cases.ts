@@ -199,7 +199,17 @@ export const extraCases: BenchmarkCase[] = [
   { label: 'Chain (depth 20)', a: chain(20), b: chain(20) },
   { label: 'Chain (depth 200)', a: chain(200), b: chain(200) },
   { label: 'Chain (depth 2000)', a: chain(2000), b: chain(2000) },
+  // 1.3.3 returned the wrong answer (false) here and stopped early, so this
+  // row reports a changed result rather than a timing comparison. The two
+  // rows after it measure the same shapes where both versions are correct.
   { label: 'Shared-reference tree vs clone', a: sharedTree(true), b: sharedTree(false) },
+  { label: 'Shared-reference trees (both shared)', a: sharedTree(true), b: sharedTree(true) },
+  { label: 'Unshared trees (clone vs clone)', a: sharedTree(false), b: sharedTree(false) },
+  {
+    label: 'Array reusing one object (both sides)',
+    a: (() => { const item = { id: 1, tags: ['x'] }; return [item, item, item, item, item, item]; })(),
+    b: (() => { const item = { id: 1, tags: ['x'] }; return [item, item, item, item, item, item]; })()
+  },
   {
     label: 'Map with object values',
     a: new Map(Array.from({ length: 10 }, (_, i) => [`k${i}`, { i }])),
