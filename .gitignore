@@ -6,3 +6,6 @@ coverage/
 .yarn/
 .pnp.*
 .yarnrc.yml
+
+# Baseline source extracted by benchmarks/compare.ts
+benchmarks/.baseline/

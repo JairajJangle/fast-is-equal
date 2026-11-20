@@ -53,7 +53,8 @@
     "test:cov": "jest --coverage --maxWorkers=2 --coverageReporters=\"json-summary\" --coverageReporters=\"html\"",
     "build": "rimraf dist && tsc",
     "prepublishOnly": "npm run build",
-    "benchmark": "ts-node --project tsconfig.node.json benchmarks/fastIsEqual.benchmark.ts"
+    "benchmark": "ts-node --project tsconfig.node.json benchmarks/fastIsEqual.benchmark.ts",
+    "benchmark:compare": "ts-node --project tsconfig.node.json benchmarks/compare.ts"
   },
   "files": [
     "dist"
