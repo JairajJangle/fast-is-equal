@@ -1,5 +1,6 @@
 import { fastIsEqual } from '../src/index';
 import isEqual from 'lodash/isEqual';
+import { testCases } from './cases';
 import { performance } from 'perf_hooks';
 
 // ANSI color codes
@@ -10,159 +11,67 @@ const WHITE = '\x1b[37m';
 const RESET = '\x1b[0m';
 const BOLD = '\x1b[1m';
 
-// Test cases
-const testCases = [
-  // Primitives
-  { label: 'Numbers', a: 42, b: 42 },
-  { label: 'Strings', a: 'hello', b: 'hello' },
-  { label: 'Booleans', a: true, b: true },
-  { label: 'NaN', a: NaN, b: NaN },
-  { label: 'Large Numbers', a: 9007199254740991, b: 9007199254740991 },
-  { label: 'Negative Zero', a: -0, b: +0 },
 
-  // Simple Objects
-  { label: 'Empty Objects', a: {}, b: {} },
-  { label: 'Single Property Object', a: { id: 123 }, b: { id: 123 } },
-  { label: 'Simple Object (equal)', a: { x: 1, y: 2 }, b: { x: 1, y: 2 } },
-  { label: 'Simple Object (unequal)', a: { x: 1, y: 2 }, b: { x: 1, y: 3 } },
-  { label: 'Object with null prototype', a: Object.create(null), b: Object.create(null) },
+// Each case runs ROUNDS rounds of ITERATIONS calls per library, alternating
+// which library goes first, and keeps each library's fastest round. A single
+// long run is easily skewed by whatever the machine does at that moment.
+const ROUNDS = 5;
+const ITERATIONS = 200_000;
 
-  // Nested Objects
-  { label: 'Nested Object (equal)', a: { x: { y: { z: 1 } } }, b: { x: { y: { z: 1 } } } },
-  { label: 'Nested Object (unequal)', a: { x: { y: { z: 1 } } }, b: { x: { y: { z: 2 } } } },
-  {
-    label: 'Deeply Nested (5 levels)',
-    a: { a: { b: { c: { d: { e: 'value' } } } } },
-    b: { a: { b: { c: { d: { e: 'value' } } } } }
-  },
+// Speed ratios within this band count as a tie: differences this small are
+// within run-to-run noise
+const TIE_BAND = 0.03;
 
-  // Arrays
-  { label: 'Empty Arrays', a: [], b: [] },
-  { label: 'Single Element Array', a: [1], b: [1] },
-  { label: 'Array of Primitives (equal)', a: [1, 2, 3], b: [1, 2, 3] },
-  { label: 'Array of Primitives (unequal)', a: [1, 2, 3], b: [1, 2, 4] },
-  { label: 'Large Array of Numbers (100)', a: Array(100).fill(42), b: Array(100).fill(42) },
-  { label: 'Array of Strings', a: ['a', 'b', 'c', 'd'], b: ['a', 'b', 'c', 'd'] },
-  { label: 'Mixed Type Array', a: [1, 'two', true, null], b: [1, 'two', true, null] },
-  { label: 'Sparse Array', a: [1, , , 4], b: [1, , , 4] },
-  { label: 'Array of Objects (equal)', a: [{ x: 1 }, { y: 2 }], b: [{ x: 1 }, { y: 2 }] },
+type Timer = (fn: any, a: any, b: any, iterations: number) => number;
 
-  // TypedArrays
-  { label: 'Uint8Array', a: new Uint8Array([1, 2, 3, 4]), b: new Uint8Array([1, 2, 3, 4]) },
-  { label: 'Float32Array', a: new Float32Array([1.1, 2.2, 3.3]), b: new Float32Array([1.1, 2.2, 3.3]) },
-  {
-    label: 'Large TypedArray (1000)',
-    a: new Int32Array(1000).fill(99),
-    b: new Int32Array(1000).fill(99)
-  },
+// One timing loop per library. A shared loop would see two targets at one
+// call site, and the engine could optimize one library's calls but not the
+// other's.
+function makeTimer(): Timer {
+  return function (fn: any, a: any, b: any, iterations: number) {
+    let sink = 0;
+    const start = performance.now();
+    for (let i = 0; i < iterations; i++) {
+      if (fn(a, b)) sink++;
+    }
+    const end = performance.now();
+    if (sink < 0) throw new Error('unreachable');
+    return (end - start) / iterations; // average time per call in ms
+  };
+}
 
-  // ArrayBuffer
-  {
-    label: 'ArrayBuffer (small)',
-    a: new Uint8Array([1, 2, 3, 4]).buffer,
-    b: new Uint8Array([1, 2, 3, 4]).buffer
-  },
+const timeFast = makeTimer();
+const timeLodash = makeTimer();
 
-  // Special Objects
-  { label: 'Dates (equal)', a: new Date('2024-01-01'), b: new Date('2024-01-01') },
-  { label: 'RegExp (equal)', a: /test/gi, b: /test/gi },
-  { label: 'RegExp (unequal flags)', a: /test/g, b: /test/i },
+function measure(a: any, b: any) {
+  // Warm up both
+  timeFast(fastIsEqual, a, b, ITERATIONS / 4);
+  timeLodash(isEqual, a, b, ITERATIONS / 4);
 
-  // Circular References
-  {
-    label: 'Circular Reference',
-    a: (() => { const obj: any = {}; obj.self = obj; return obj; })(),
-    b: (() => { const obj: any = {}; obj.self = obj; return obj; })(),
-  },
-  {
-    label: 'Mutual Circular',
-    a: (() => { const a: any = { name: 'a' }; const b = { ref: a }; a.ref = b; return a; })(),
-    b: (() => { const a: any = { name: 'a' }; const b = { ref: a }; a.ref = b; return a; })(),
-  },
-
-  // Maps
-  { label: 'Empty Map', a: new Map(), b: new Map() },
-  { label: 'Map with primitives', a: new Map([[1, 'one'], [2, 'two']]), b: new Map([[1, 'one'], [2, 'two']]) },
-  { label: 'Map (unequal)', a: new Map([[1, 'one'], [2, 'two']]), b: new Map([[1, 'one'], [3, 'three']]) },
-  {
-    label: 'Large Map (50 entries)',
-    a: new Map(Array.from({ length: 50 }, (_, i) => [i, `value${i}`])),
-    b: new Map(Array.from({ length: 50 }, (_, i) => [i, `value${i}`]))
-  },
-
-  // Sets
-  { label: 'Empty Set', a: new Set(), b: new Set() },
-  { label: 'Set of numbers', a: new Set([1, 2, 3]), b: new Set([1, 2, 3]) },
-  { label: 'Set (unequal)', a: new Set([1, 2, 3]), b: new Set([1, 2, 4]) },
-  { label: 'Set of strings', a: new Set(['a', 'b', 'c']), b: new Set(['a', 'b', 'c']) },
-  {
-    label: 'Large Set (100 items)',
-    a: new Set(Array.from({ length: 100 }, (_, i) => i)),
-    b: new Set(Array.from({ length: 100 }, (_, i) => i))
-  },
-
-  // Mixed types (should fail fast)
-  { label: 'Object vs Array', a: {}, b: [] },
-  { label: 'Map vs Set', a: new Map(), b: new Set() },
-  { label: 'String vs Number', a: '42', b: 42 },
-  { label: 'Boolean vs Number', a: true, b: 1 },
-
-  // Real-world-like objects
-  {
-    label: 'User Object',
-    a: { id: 1, name: 'John', email: 'john@example.com', active: true },
-    b: { id: 1, name: 'John', email: 'john@example.com', active: true }
-  },
-  {
-    label: 'API Response',
-    a: { status: 200, data: { users: [{ id: 1 }, { id: 2 }], total: 2 }, timestamp: 1234567890 },
-    b: { status: 200, data: { users: [{ id: 1 }, { id: 2 }], total: 2 }, timestamp: 1234567890 }
-  },
-  {
-    label: 'Config Object',
-    a: { debug: false, port: 3000, host: 'localhost', features: ['auth', 'api', 'ui'] },
-    b: { debug: false, port: 3000, host: 'localhost', features: ['auth', 'api', 'ui'] }
-  },
-  {
-    label: 'State Object',
-    a: {
-      counter: 0,
-      items: [],
-      loading: false,
-      error: null,
-      metadata: { version: '1.0.0', lastUpdated: null }
-    },
-    b: {
-      counter: 0,
-      items: [],
-      loading: false,
-      error: null,
-      metadata: { version: '1.0.0', lastUpdated: null }
+  let customTime = Infinity;
+  let lodashTime = Infinity;
+  for (let round = 0; round < ROUNDS; round++) {
+    if (round % 2 === 0) {
+      customTime = Math.min(customTime, timeFast(fastIsEqual, a, b, ITERATIONS));
+      lodashTime = Math.min(lodashTime, timeLodash(isEqual, a, b, ITERATIONS));
+    } else {
+      lodashTime = Math.min(lodashTime, timeLodash(isEqual, a, b, ITERATIONS));
+      customTime = Math.min(customTime, timeFast(fastIsEqual, a, b, ITERATIONS));
     }
   }
-];
-
-// Number of iterations to average the performance
-const iterations = 1_000_000;
-
-// Function to measure performance of a given equality function
-function measurePerformance(fn: any, a: any, b: any) {
-  const start = performance.now();
-  for (let i = 0; i < iterations; i++) {
-    fn(a, b);
-  }
-  const end = performance.now();
-  return (end - start) / iterations; // Return average time per iteration in ms
+  return { customTime, lodashTime };
 }
 
 // Run the performance comparison
 console.log(`${BOLD}Performance Comparison: fastIsEqual vs Lodash isEqual${RESET}`);
-console.log(`Iterations per test case: ${iterations.toLocaleString()}`);
+console.log(`Per test case: best of ${ROUNDS} rounds of ${ITERATIONS.toLocaleString('en-US')} calls per library`);
+console.log(`Within ±${TIE_BAND * 100}% counts as a tie`);
 console.log('═'.repeat(80));
 
 let totalCustomTime = 0;
 let totalLodashTime = 0;
 let customWins = 0;
+let ties = 0;
 let lodashWins = 0;
 
 const results: Array<{ label: string, speedup: number, customTime: number, lodashTime: number; }> = [];
@@ -170,19 +79,18 @@ const results: Array<{ label: string, speedup: number, customTime: number, lodas
 testCases.forEach((testCase, index) => {
   const { label, a, b } = testCase;
 
-  // Measure custom isEqual performance
-  const customTime = measurePerformance(fastIsEqual, a, b);
+  const { customTime, lodashTime } = measure(a, b);
   totalCustomTime += customTime;
-
-  // Measure Lodash isEqual performance
-  const lodashTime = measurePerformance(isEqual, a, b);
   totalLodashTime += lodashTime;
 
   // Calculate speed multiplier
   const speedMultiplier = lodashTime / customTime;
 
-  // Track wins
-  if (customTime < lodashTime) {
+  // Track wins, ties and losses
+  const isTie = Math.abs(speedMultiplier - 1) <= TIE_BAND;
+  if (isTie) {
+    ties++;
+  } else if (speedMultiplier > 1) {
     customWins++;
   } else {
     lodashWins++;
@@ -193,7 +101,9 @@ testCases.forEach((testCase, index) => {
   // Determine color based on speed multiplier
   let color = WHITE;
   let emoji = '';
-  if (speedMultiplier < 0.9) {
+  if (isTie) {
+    emoji = '🟰';
+  } else if (speedMultiplier < 0.9) {
     color = RED;
     emoji = '❌';
   } else if (speedMultiplier < 1) {
@@ -213,7 +123,8 @@ testCases.forEach((testCase, index) => {
   console.log(`${BOLD}Test ${index + 1}:${RESET} ${label}`);
   console.log(`  fastIsEqual:    ${customTime.toFixed(6)} ms`);
   console.log(`  Lodash isEqual: ${lodashTime.toFixed(6)} ms`);
-  console.log(`${color}  ${emoji} Speed: ${speedMultiplier.toFixed(2)}x${speedMultiplier >= 1 ? ' faster' : ' slower'}${RESET}`);
+  const verdict = isTie ? ' (tie)' : speedMultiplier > 1 ? ' faster' : ' slower';
+  console.log(`${color}  ${emoji} Speed: ${speedMultiplier.toFixed(2)}x${verdict}${RESET}`);
   console.log('─'.repeat(80));
 });
 
@@ -223,7 +134,7 @@ const topPerformers = results
   .slice(0, 10);
 
 const worstPerformers = results
-  .filter(r => r.speedup < 1)
+  .filter(r => r.speedup < 1 - TIE_BAND)
   .sort((a, b) => a.speedup - b.speedup);
 
 // Calculate and print summary
@@ -240,9 +151,11 @@ console.log(`  Average fastIsEqual time:    ${averageCustomTime.toFixed(6)} ms`)
 console.log(`  Average Lodash isEqual time: ${averageLodashTime.toFixed(6)} ms`);
 console.log(`  ${GREEN}${BOLD}fastIsEqual is ${averageSpeedMultiplier.toFixed(2)}x faster on average${RESET}`);
 console.log();
+const share = (n: number) => `${n}/${testCases.length} (${(n / testCases.length * 100).toFixed(1)}%)`;
 console.log(`${BOLD}Win Rate:${RESET}`);
-console.log(`  fastIsEqual wins: ${GREEN}${customWins}/${testCases.length}${RESET} (${(customWins / testCases.length * 100).toFixed(1)}%)`);
-console.log(`  Lodash wins:      ${RED}${lodashWins}/${testCases.length}${RESET} (${(lodashWins / testCases.length * 100).toFixed(1)}%)`);
+console.log(`  fastIsEqual wins: ${GREEN}${share(customWins)}${RESET}`);
+console.log(`  Ties (±${TIE_BAND * 100}%):     ${share(ties)}`);
+console.log(`  Lodash wins:      ${RED}${share(lodashWins)}${RESET}`);
 
 console.log();
 console.log(`${BOLD}🏆 Top 10 Best Performance Gains:${RESET}`);
