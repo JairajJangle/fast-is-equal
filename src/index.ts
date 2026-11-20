@@ -144,7 +144,10 @@ export function fastIsEqual(a: any, b: any) {
 
   // Handle built-in types inline for common cases
   if (aCtor === dateConstructor) {
-    return a.getTime() === b.getTime();
+    // Invalid dates have a NaN time value and are equal to each other
+    const timeA = a.getTime();
+    const timeB = b.getTime();
+    return timeA === timeB || (timeA !== timeA && timeB !== timeB);
   }
 
   if (aCtor === regExpConstructor) {
@@ -195,7 +198,9 @@ function deepEqual(valA: any, valB: any, visited: Map<any, any> | null): boolean
 
   // Date - inline comparison
   if (ctorA === dateConstructor) {
-    return valA.getTime() === valB.getTime();
+    const timeA = valA.getTime();
+    const timeB = valB.getTime();
+    return timeA === timeB || (timeA !== timeA && timeB !== timeB);
   }
 
   // RegExp - inline comparison
@@ -460,15 +465,22 @@ function deepEqual(valA: any, valB: any, visited: Map<any, any> | null): boolean
     const len = arrA.length;
     if (len !== arrB.length) return false;
 
+    // Elements differ only when they are unequal and not both NaN. The NaN
+    // test (x === x) runs on mismatch only, and is always true for integer
+    // and BigInt arrays.
+
     // Small typed arrays
     if (len < 16) {
       for (let i = 0; i < len; i++) {
-        if (arrA[i] !== arrB[i]) return false;
+        const x = arrA[i];
+        const y = arrB[i];
+        if (x !== y && (x === x || y === y)) return false;
       }
       return true;
     }
 
-    // Large typed arrays - unroll loop
+    // Large typed arrays - unroll loop. A mismatching block falls through to
+    // the NaN-aware loop below instead of failing outright.
     let i = 0;
     const unrollLen = len - 3;
     for (; i < unrollLen; i += 4) {
@@ -476,12 +488,14 @@ function deepEqual(valA: any, valB: any, visited: Map<any, any> | null): boolean
         arrA[i + 1] !== arrB[i + 1] ||
         arrA[i + 2] !== arrB[i + 2] ||
         arrA[i + 3] !== arrB[i + 3]) {
-        return false;
+        break;
       }
     }
-    // Handle remaining
+    // Remaining elements, starting at the first mismatching block if any
     for (; i < len; i++) {
-      if (arrA[i] !== arrB[i]) return false;
+      const x = arrA[i];
+      const y = arrB[i];
+      if (x !== y && (x === x || y === y)) return false;
     }
     return true;
   }

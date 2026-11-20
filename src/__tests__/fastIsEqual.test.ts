@@ -680,6 +680,26 @@ describe('fastIsEqual', () => {
         const date2 = new Date('2023-01-02');
         expect(fastIsEqual(date1, date2)).toBe(false);
       });
+
+      it('should return true for two invalid dates', () => {
+        expect(fastIsEqual(new Date(NaN), new Date(NaN))).toBe(true);
+        expect(fastIsEqual(new Date('nope'), new Date(NaN))).toBe(true);
+      });
+
+      it('should return false for an invalid date and a valid date', () => {
+        expect(fastIsEqual(new Date(NaN), new Date(0))).toBe(false);
+        expect(fastIsEqual(new Date(0), new Date(NaN))).toBe(false);
+      });
+
+      it('should compare invalid dates nested in objects and arrays', () => {
+        expect(fastIsEqual({ d: new Date(NaN) }, { d: new Date(NaN) })).toBe(true);
+        expect(fastIsEqual({ d: new Date(NaN) }, { d: new Date(0) })).toBe(false);
+        expect(fastIsEqual({ d: new Date(0) }, { d: new Date(NaN) })).toBe(false);
+        expect(fastIsEqual([new Date(NaN)], [new Date(NaN)])).toBe(true);
+        const long1 = [1, 2, 3, 4, 5, 6, 7, 8, new Date(NaN)];
+        const long2 = [1, 2, 3, 4, 5, 6, 7, 8, new Date(NaN)];
+        expect(fastIsEqual(long1, long2)).toBe(true);
+      });
     });
 
     describe('RegExp objects', () => {
@@ -1104,6 +1124,53 @@ describe('fastIsEqual', () => {
         arr1.set([1, 2, 3, 4]);
         arr2.set([1, 2, 3, 4]);
         expect(fastIsEqual(arr1, arr2)).toBe(true);
+      });
+
+      it('should treat NaN elements as equal in small float arrays', () => {
+        expect(fastIsEqual(new Float64Array([NaN]), new Float64Array([NaN]))).toBe(true);
+        expect(fastIsEqual(new Float32Array([NaN]), new Float32Array([NaN]))).toBe(true);
+        expect(fastIsEqual(new Float64Array([1, NaN, 3]), new Float64Array([1, NaN, 3]))).toBe(true);
+      });
+
+      it('should return false for NaN against a number in float arrays', () => {
+        expect(fastIsEqual(new Float64Array([NaN]), new Float64Array([1]))).toBe(false);
+        expect(fastIsEqual(new Float64Array([1]), new Float64Array([NaN]))).toBe(false);
+        expect(fastIsEqual(new Float64Array([NaN, 1]), new Float64Array([NaN, 2]))).toBe(false);
+      });
+
+      it('should treat NaN elements as equal inside an unrolled block', () => {
+        const make = () => Float64Array.from({ length: 20 }, (_, i) => (i === 5 ? NaN : i));
+        expect(fastIsEqual(make(), make())).toBe(true);
+        expect(fastIsEqual(new Float64Array(20).fill(NaN), new Float64Array(20).fill(NaN))).toBe(true);
+      });
+
+      it('should treat NaN elements as equal in the remainder after the unrolled blocks', () => {
+        const make = () => Float32Array.from({ length: 19 }, (_, i) => (i === 18 ? NaN : i));
+        expect(fastIsEqual(make(), make())).toBe(true);
+      });
+
+      it('should find a real difference after a NaN block in a large float array', () => {
+        const arr1 = Float64Array.from({ length: 20 }, (_, i) => (i === 2 ? NaN : 1));
+        const arr2 = Float64Array.from({ length: 20 }, (_, i) => (i === 2 ? NaN : i === 13 ? 5 : 1));
+        expect(fastIsEqual(arr1, arr2)).toBe(false);
+        expect(fastIsEqual(arr2, arr1)).toBe(false);
+      });
+
+      it('should return false for NaN against a number in a large float array', () => {
+        const arr1 = Float64Array.from({ length: 20 }, (_, i) => (i === 2 ? NaN : 1));
+        const arr2 = new Float64Array(20).fill(1);
+        expect(fastIsEqual(arr1, arr2)).toBe(false);
+        expect(fastIsEqual(arr2, arr1)).toBe(false);
+      });
+
+      it('should still detect differences in large integer arrays', () => {
+        const arr1 = new Int32Array(20).fill(7);
+        const arr2 = new Int32Array(20).fill(7);
+        arr2[17] = 8;
+        expect(fastIsEqual(arr1, arr2)).toBe(false);
+        arr2[17] = 7;
+        arr2[19] = 8;
+        expect(fastIsEqual(arr1, arr2)).toBe(false);
       });
     });
 
