@@ -597,12 +597,12 @@ describe('fastIsEqual', () => {
     });
 
     describe('Sibling aliasing', () => {
-      it('should distinguish distinct-but-equal siblings from a shared reference', () => {
+      it('should equate a shared reference with distinct-but-equal siblings', () => {
         const shared = { v: 1 };
         const distinct = { x: { v: 1 }, y: { v: 1 } };
         const aliased = { x: shared, y: shared };
-        expect(fastIsEqual(distinct, aliased)).toBe(false);
-        expect(fastIsEqual(aliased, distinct)).toBe(false);
+        expect(fastIsEqual(distinct, aliased)).toBe(true);
+        expect(fastIsEqual(aliased, distinct)).toBe(true);
       });
     });
 
@@ -1498,6 +1498,370 @@ describe('fastIsEqual', () => {
 
         expect(fastIsEqual(view1, view2)).toBe(false);
       });
+    });
+  });
+
+  describe('Shared references', () => {
+    // Wraps a value in `depth` single-key objects, to push the comparison
+    // past the depth at which cycle tracking changes strategy
+    const wrap = (value: any, depth: number) => {
+      for (let i = 0; i < depth; i++) value = { s: value };
+      return value;
+    };
+
+    it('should equate a structure that reuses one object with its clone', () => {
+      const defaults = { theme: 'dark', nested: { lang: 'en' } };
+      const shared = { a: defaults, b: defaults, list: [defaults, defaults] };
+      const clone = JSON.parse(JSON.stringify(shared));
+      expect(fastIsEqual(shared, clone)).toBe(true);
+      expect(fastIsEqual(clone, shared)).toBe(true);
+    });
+
+    it('should still detect a difference behind a shared reference', () => {
+      const defaults = { theme: 'dark', nested: { lang: 'en' } };
+      const shared = { a: defaults, b: defaults };
+      const other = { a: { theme: 'dark', nested: { lang: 'en' } }, b: { theme: 'dark', nested: { lang: 'fr' } } };
+      expect(fastIsEqual(shared, other)).toBe(false);
+      expect(fastIsEqual(other, shared)).toBe(false);
+    });
+
+    it('should equate shared empty containers with separate ones', () => {
+      const emptyArr: any[] = [];
+      const emptyObj = {};
+      expect(fastIsEqual({ a: emptyArr, b: emptyArr }, { a: [], b: [] })).toBe(true);
+      expect(fastIsEqual({ a: emptyObj, b: emptyObj }, { a: {}, b: {} })).toBe(true);
+    });
+
+    it('should equate shared references inside arrays', () => {
+      const item = { k: [1, { z: 1 }] };
+      const make = () => ({ k: [1, { z: 1 }] });
+      expect(fastIsEqual([item, item, item], [make(), make(), make()])).toBe(true);
+      const long1 = [1, 2, 3, 4, 5, 6, 7, 8, item, item];
+      const long2 = [1, 2, 3, 4, 5, 6, 7, 8, make(), make()];
+      expect(fastIsEqual(long1, long2)).toBe(true);
+      expect(fastIsEqual(long2, long1)).toBe(true);
+      expect(fastIsEqual({ list: [item, item] }, { list: [make(), { k: [1, { z: 2 }] }] })).toBe(false);
+    });
+
+    it('should equate shared references used as Map values and Set members', () => {
+      const item = { k: { z: 1 } };
+      const make = () => ({ k: { z: 1 } });
+      expect(fastIsEqual(new Map([['a', item], ['b', item]]), new Map([['a', make()], ['b', make()]]))).toBe(true);
+      expect(fastIsEqual({ s: new Set([item]), t: new Set([item]) }, { s: new Set([make()]), t: new Set([make()]) })).toBe(true);
+    });
+
+    it('should equate an object used on both sides in different positions', () => {
+      const node = { v: { w: 1 } };
+      const a = { p: node, q: { v: { w: 1 } } };
+      const b = { p: { v: { w: 1 } }, q: node };
+      expect(fastIsEqual(a, b)).toBe(true);
+      expect(fastIsEqual(b, a)).toBe(true);
+    });
+
+    it('should compare a structure with one of its own sub-structures', () => {
+      const tail = { next: null as any, v: 1 };
+      const head = { next: tail, v: 1 };
+      expect(fastIsEqual(head, tail)).toBe(false);
+      expect(fastIsEqual(tail, head)).toBe(false);
+    });
+
+    it('should equate shared references nested deeper than the tracking threshold', () => {
+      const item = { k: { z: 1 } };
+      const make = () => ({ k: { z: 1 } });
+      const shared = wrap({ l: item, r: item, deep: { m: item } }, 40);
+      const separate = wrap({ l: make(), r: make(), deep: { m: make() } }, 40);
+      expect(fastIsEqual(shared, separate)).toBe(true);
+      expect(fastIsEqual(separate, shared)).toBe(true);
+
+      const different = wrap({ l: make(), r: make(), deep: { m: { k: { z: 2 } } } }, 40);
+      expect(fastIsEqual(shared, different)).toBe(false);
+      expect(fastIsEqual(different, shared)).toBe(false);
+    });
+
+    it('should equate a shared reference repeated at every level of a deep structure', () => {
+      const item = { k: 1 };
+      const build = (shared: boolean) => {
+        let node: any = { l: shared ? item : { k: 1 }, r: shared ? item : { k: 1 } };
+        for (let i = 0; i < 60; i++) {
+          node = { next: node, l: shared ? item : { k: 1 }, r: shared ? item : { k: 1 } };
+        }
+        return node;
+      };
+      expect(fastIsEqual(build(true), build(false))).toBe(true);
+      expect(fastIsEqual(build(false), build(true))).toBe(true);
+    });
+
+    it('should compare deep linear chains', () => {
+      const chain = (depth: number) => {
+        let node: any = { v: 0 };
+        for (let i = 0; i < depth; i++) node = { next: node, v: i };
+        return node;
+      };
+      expect(fastIsEqual(chain(100), chain(100))).toBe(true);
+      expect(fastIsEqual(chain(100), chain(101))).toBe(false);
+      expect(fastIsEqual(chain(24), chain(24))).toBe(true);
+      expect(fastIsEqual(chain(25), chain(25))).toBe(true);
+      expect(fastIsEqual(chain(26), chain(26))).toBe(true);
+    });
+
+    it('should keep comparing correctly after returning from a deep branch', () => {
+      const build = (leaf: number, tail: number) => {
+        const item = { k: { z: 1 } };
+        const loop: any = { name: 'loop' };
+        loop.self = { back: loop };
+        return {
+          deep: wrap({ leaf }, 40),
+          shallow: { a: { b: tail } },
+          shared: [item, item],
+          loop,
+        };
+      };
+      expect(fastIsEqual(build(1, 1), build(1, 1))).toBe(true);
+      expect(fastIsEqual(build(1, 1), build(1, 2))).toBe(false);
+      expect(fastIsEqual(build(1, 1), build(2, 1))).toBe(false);
+    });
+
+    it('should compare deep chains of arrays, Maps and Sets', () => {
+      const build = (depth: number, leaf: number) => {
+        let node: any = { leaf };
+        for (let i = 0; i < depth; i++) {
+          node = i % 3 === 0 ? [node] : i % 3 === 1 ? new Map([['k', node]]) : new Set([node]);
+        }
+        return node;
+      };
+      expect(fastIsEqual(build(60, 1), build(60, 1))).toBe(true);
+      expect(fastIsEqual(build(60, 1), build(60, 2))).toBe(false);
+    });
+  });
+
+  describe('Symbol-keyed properties holding objects', () => {
+    const sym = Symbol('meta');
+
+    it('should deep-compare objects stored under symbol keys', () => {
+      expect(fastIsEqual({ [sym]: { z: { y: 1 } } }, { [sym]: { z: { y: 1 } } })).toBe(true);
+      expect(fastIsEqual({ [sym]: { z: { y: 1 } } }, { [sym]: { z: { y: 2 } } })).toBe(false);
+      expect(fastIsEqual({ a: 1, [sym]: [1, { y: 1 }] }, { a: 1, [sym]: [1, { y: 1 }] })).toBe(true);
+    });
+
+    it('should compare symbol-keyed values of different kinds', () => {
+      expect(fastIsEqual({ [sym]: null }, { [sym]: {} })).toBe(false);
+      expect(fastIsEqual({ [sym]: {} }, { [sym]: null })).toBe(false);
+      expect(fastIsEqual({ [sym]: 1 }, { [sym]: 2 })).toBe(false);
+      expect(fastIsEqual({ [sym]: NaN }, { [sym]: NaN })).toBe(true);
+    });
+
+    it('should compare symbol-keyed objects next to nested string-keyed objects', () => {
+      const make = (v: number) => ({ a: { b: 1 }, [sym]: { c: v } });
+      expect(fastIsEqual(make(1), make(1))).toBe(true);
+      expect(fastIsEqual(make(1), make(2))).toBe(false);
+    });
+
+    it('should follow cycles that run through symbol keys', () => {
+      const build = () => {
+        const root: any = { name: 'root' };
+        root[sym] = { back: root };
+        return root;
+      };
+      expect(fastIsEqual(build(), build())).toBe(true);
+    });
+  });
+
+  describe('Maps with object keys', () => {
+    it('should equate Maps whose object keys are in a different order', () => {
+      const map1 = new Map([[{ a: 1 }, 1], [{ a: 2 }, 2]]);
+      const map2 = new Map([[{ a: 2 }, 2], [{ a: 1 }, 1]]);
+      expect(fastIsEqual(map1, map2)).toBe(true);
+      expect(fastIsEqual(map2, map1)).toBe(true);
+    });
+
+    it('should equate Maps whose nested object keys are in a different order', () => {
+      const map1 = new Map([[{ a: { b: [1] } }, 'x'], [{ a: { b: [2] } }, 'y']]);
+      const map2 = new Map([[{ a: { b: [2] } }, 'y'], [{ a: { b: [1] } }, 'x']]);
+      expect(fastIsEqual(map1, map2)).toBe(true);
+    });
+
+    it('should match each object key at most once', () => {
+      const map1 = new Map([[{ a: 1 }, 1], [{ a: 1 }, 1]]);
+      const map2 = new Map([[{ a: 1 }, 1], [{ b: 2 }, 1]]);
+      expect(fastIsEqual(map1, map2)).toBe(false);
+      expect(fastIsEqual(map2, map1)).toBe(false);
+    });
+
+    it('should equate Maps with duplicate deep-equal object keys', () => {
+      const map1 = new Map([[{ a: 1 }, { x: 1 }], [{ a: 1 }, { x: 2 }]]);
+      const map2 = new Map([[{ a: 1 }, { x: 2 }], [{ a: 1 }, { x: 1 }]]);
+      expect(fastIsEqual(map1, map2)).toBe(true);
+    });
+
+    it('should return false when an object key has no counterpart', () => {
+      const map1 = new Map<any, any>([[{ a: 1 }, 1], ['k', 2]]);
+      const map2 = new Map<any, any>([['j', 1], ['k', 2]]);
+      expect(fastIsEqual(map1, map2)).toBe(false);
+      expect(fastIsEqual(map2, map1)).toBe(false);
+    });
+
+    it('should handle null keys and mixed key kinds', () => {
+      const map1 = new Map<any, any>([[null, { v: 1 }], [{ a: 1 }, 1], ['s', NaN]]);
+      const map2 = new Map<any, any>([['s', NaN], [{ a: 1 }, 1], [null, { v: 1 }]]);
+      expect(fastIsEqual(map1, map2)).toBe(true);
+      expect(fastIsEqual(new Map<any, any>([[null, 1]]), new Map<any, any>([[{}, 1]]))).toBe(false);
+      expect(fastIsEqual(new Map<any, any>([[{}, 1]]), new Map<any, any>([[null, 1]]))).toBe(false);
+    });
+
+    it('should compare Map values of different kinds under primitive keys', () => {
+      expect(fastIsEqual(new Map<any, any>([['k', { a: 1 }]]), new Map<any, any>([['k', 1]]))).toBe(false);
+      expect(fastIsEqual(new Map<any, any>([['k', 1]]), new Map<any, any>([['k', { a: 1 }]]))).toBe(false);
+      expect(fastIsEqual(new Map<any, any>([['k', null]]), new Map<any, any>([['k', { a: 1 }]]))).toBe(false);
+      expect(fastIsEqual(new Map<any, any>([['k', NaN]]), new Map<any, any>([['k', NaN]]))).toBe(true);
+    });
+  });
+
+  describe('Sets with object members', () => {
+    it('should equate Sets whose nested members are in a different order', () => {
+      const set1 = new Set([{ a: { b: 1 } }, { a: { b: 2 } }, { a: { b: 3 } }]);
+      const set2 = new Set([{ a: { b: 3 } }, { a: { b: 1 } }, { a: { b: 2 } }]);
+      expect(fastIsEqual(set1, set2)).toBe(true);
+      expect(fastIsEqual(set2, set1)).toBe(true);
+    });
+
+    it('should return false when a nested member differs', () => {
+      const set1 = new Set([{ a: { b: 1 } }, { a: { b: 2 } }]);
+      const set2 = new Set([{ a: { b: 1 } }, { a: { b: 9 } }]);
+      expect(fastIsEqual(set1, set2)).toBe(false);
+    });
+
+    it('should handle null members next to objects', () => {
+      expect(fastIsEqual(new Set([null, { a: 1 }]), new Set([{ a: 1 }, null]))).toBe(true);
+      expect(fastIsEqual(new Set([null, { a: 1 }]), new Set([{ a: 1 }, { a: 2 }]))).toBe(false);
+    });
+  });
+
+  describe('Circular reference shapes', () => {
+    const wrap = (value: any, depth: number) => {
+      for (let i = 0; i < depth; i++) value = { s: value };
+      return value;
+    };
+    const ring = (length: number) => {
+      const root: any = { v: -1 };
+      let node = root;
+      for (let i = 0; i < length; i++) {
+        node.next = { v: i };
+        node = node.next;
+      }
+      node.next = root;
+      return root;
+    };
+    const selfLoop = () => {
+      const a: any = {};
+      a.self = a;
+      return a;
+    };
+    const twoLoop = () => {
+      const a: any = {};
+      a.self = { self: a };
+      return a;
+    };
+    const parentChain = (depth: number) => {
+      const root: any = { v: -1, parent: null, child: null };
+      let node = root;
+      for (let i = 0; i < depth; i++) {
+        const child: any = { v: i, parent: node, child: null };
+        node.child = child;
+        node = child;
+      }
+      return root;
+    };
+
+    it('should compare rings of the same and of different lengths', () => {
+      expect(fastIsEqual(ring(1), ring(1))).toBe(true);
+      expect(fastIsEqual(ring(10), ring(10))).toBe(true);
+      expect(fastIsEqual(ring(100), ring(100))).toBe(true);
+      expect(fastIsEqual(ring(100), ring(101))).toBe(false);
+      expect(fastIsEqual(ring(101), ring(100))).toBe(false);
+      expect(fastIsEqual(ring(10), ring(11))).toBe(false);
+    });
+
+    it('should compare a cyclic structure with an acyclic one', () => {
+      const cyclic = selfLoop();
+      expect(fastIsEqual(cyclic, { self: { self: {} } })).toBe(false);
+      expect(fastIsEqual({ self: { self: {} } }, cyclic)).toBe(false);
+      expect(fastIsEqual(wrap(selfLoop(), 30), wrap({ self: { self: {} } }, 30))).toBe(false);
+      expect(fastIsEqual(wrap({ self: { self: {} } }, 30), wrap(selfLoop(), 30))).toBe(false);
+    });
+
+    it('should not equate loops of different lengths', () => {
+      expect(fastIsEqual(selfLoop(), twoLoop())).toBe(false);
+      expect(fastIsEqual(twoLoop(), selfLoop())).toBe(false);
+    });
+
+    it('should not equate loops of different lengths below the tracking threshold', () => {
+      expect(fastIsEqual(wrap(selfLoop(), 30), wrap(twoLoop(), 30))).toBe(false);
+      expect(fastIsEqual(wrap(twoLoop(), 30), wrap(selfLoop(), 30))).toBe(false);
+    });
+
+    it('should equate identical loops below the tracking threshold', () => {
+      expect(fastIsEqual(wrap(selfLoop(), 30), wrap(selfLoop(), 30))).toBe(true);
+      expect(fastIsEqual(wrap(twoLoop(), 30), wrap(twoLoop(), 30))).toBe(true);
+      expect(fastIsEqual(wrap(ring(5), 30), wrap(ring(5), 30))).toBe(true);
+      expect(fastIsEqual(wrap(ring(5), 30), wrap(ring(6), 30))).toBe(false);
+    });
+
+    it('should compare parent-pointer chains', () => {
+      expect(fastIsEqual(parentChain(5), parentChain(5))).toBe(true);
+      expect(fastIsEqual(parentChain(100), parentChain(100))).toBe(true);
+      expect(fastIsEqual(parentChain(100), parentChain(101))).toBe(false);
+      expect(fastIsEqual(parentChain(101), parentChain(100))).toBe(false);
+    });
+
+    it('should compare cycles that run through arrays, Maps and Sets', () => {
+      const build = () => {
+        const root: any = { list: [], map: new Map(), set: new Set() };
+        root.list.push(root);
+        root.map.set('root', root);
+        root.set.add(root);
+        return root;
+      };
+      expect(fastIsEqual(build(), build())).toBe(true);
+      expect(fastIsEqual(wrap(build(), 30), wrap(build(), 30))).toBe(true);
+    });
+
+    it('should recover from a failed match that closed a cycle below the tracking threshold', () => {
+      // The cycle closes before the differing key is reached, so a failed
+      // attempt has to be unwound after the cycle bookkeeping ran
+      const member = (v: number) => {
+        const m: any = { inner: {}, v };
+        m.inner.back = m;
+        return m;
+      };
+      const set1 = wrap(new Set([member(1), member(2), member(3)]), 30);
+      const set2 = wrap(new Set([member(3), member(2), member(1)]), 30);
+      expect(fastIsEqual(set1, set2)).toBe(true);
+      expect(fastIsEqual(set2, set1)).toBe(true);
+      const set3 = wrap(new Set([member(3), member(2), member(4)]), 30);
+      expect(fastIsEqual(set1, set3)).toBe(false);
+
+      const map1 = wrap(new Map([[member(1), member(5)], [member(2), member(6)]]), 30);
+      const map2 = wrap(new Map([[member(2), member(6)], [member(1), member(5)]]), 30);
+      expect(fastIsEqual(map1, map2)).toBe(true);
+      const map3 = wrap(new Map([[member(2), member(6)], [member(1), member(7)]]), 30);
+      expect(fastIsEqual(map1, map3)).toBe(false);
+    });
+
+    it('should compare Sets and Maps holding cyclic members below the tracking threshold', () => {
+      const member = (v: number) => {
+        const m: any = { v, inner: {} };
+        m.inner.back = m;
+        return m;
+      };
+      const set1 = wrap(new Set([member(1), member(2), member(3)]), 30);
+      const set2 = wrap(new Set([member(3), member(1), member(2)]), 30);
+      expect(fastIsEqual(set1, set2)).toBe(true);
+      const set3 = wrap(new Set([member(3), member(1), member(4)]), 30);
+      expect(fastIsEqual(set1, set3)).toBe(false);
+
+      const map1 = wrap(new Map([[member(1), 'a'], [member(2), 'b']]), 30);
+      const map2 = wrap(new Map([[member(2), 'b'], [member(1), 'a']]), 30);
+      expect(fastIsEqual(map1, map2)).toBe(true);
     });
   });
 
