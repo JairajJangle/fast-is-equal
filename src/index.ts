@@ -20,6 +20,17 @@ const promiseConstructor = Promise;
 const errorConstructor = Error;
 const dataViewConstructor = DataView;
 const objectConstructor = Object;
+const numberConstructor = Number;
+const booleanConstructor = Boolean;
+const symbolConstructor = Symbol;
+const bigIntConstructor = typeof BigInt === TYPEOF_FUNCTION ? BigInt : undefined;
+const weakMapConstructor = WeakMap;
+const weakSetConstructor = WeakSet;
+
+// Constructor of the last class instance that went through the full dispatch
+// chain and turned out to be an ordinary object. Instances of the same class
+// then take the plain-object path directly.
+let lastPlainCtor: unknown = null;
 
 export function fastIsEqual(a: any, b: any) {
   // Fast path for strict equality
@@ -91,13 +102,13 @@ export function fastIsEqual(a: any, b: any) {
           continue;
         }
 
-        // Primitive comparison
-        if (elemTypeA !== TYPEOF_OBJECT && elemTypeA !== TYPEOF_FUNCTION) {
+        // Primitives and functions - unequal, since they are not identical
+        if (elemTypeA !== TYPEOF_OBJECT) {
           return false;
         }
 
         // Need deep comparison - visited map allocated lazily on demand
-        if (!deepEqual(elemA, elemB, null)) return false;
+        if (!deepEqualObjects(elemA, elemB, null)) return false;
       }
       if (i === len) return true;
 
@@ -127,13 +138,13 @@ export function fastIsEqual(a: any, b: any) {
           continue;
         }
 
-        // Primitive comparison
-        if (elemTypeA !== TYPEOF_OBJECT && elemTypeA !== TYPEOF_FUNCTION) {
+        // Primitives and functions - unequal, since they are not identical
+        if (elemTypeA !== TYPEOF_OBJECT) {
           return false;
         }
 
         // Need deep comparison - visited map allocated lazily on demand
-        if (!deepEqual(elemA, elemB, null)) return false;
+        if (!deepEqualObjects(elemA, elemB, null)) return false;
       }
       return true;
     }
@@ -154,8 +165,13 @@ export function fastIsEqual(a: any, b: any) {
     return a.source === b.source && a.flags === b.flags;
   }
 
+  // Plain objects - the most common case, skip the dispatch chain
+  if (aCtor === objectConstructor || aCtor === undefined) {
+    return equalPlainObjects(a, b, null);
+  }
+
   // For all other objects, use deep comparison
-  return deepEqual(a, b, null);
+  return deepEqualObjects(a, b, null);
 }
 
 function deepEqual(valA: any, valB: any, visited: Map<any, any> | null): boolean {
@@ -174,10 +190,17 @@ function deepEqual(valA: any, valB: any, visited: Map<any, any> | null): boolean
     return isNaN(valA) && isNaN(valB);
   }
 
-  if (typeA !== TYPEOF_OBJECT && typeA !== TYPEOF_FUNCTION) {
+  // Strings, booleans, symbols, bigints and functions are equal only when
+  // identical, which the first check already ruled out
+  if (typeA !== TYPEOF_OBJECT) {
     return false;
   }
 
+  return deepEqualObjects(valA, valB, visited);
+}
+
+// Both values are non-null objects and are not identical
+function deepEqualObjects(valA: any, valB: any, visited: Map<any, any> | null): boolean {
   // Check visited - only when a map has actually been allocated
   if (visited !== null) {
     const visitedVal = visited.get(valA);
@@ -191,8 +214,9 @@ function deepEqual(valA: any, valB: any, visited: Map<any, any> | null): boolean
 
   // Fast path for plain objects - the most common recursion target.
   // ({}).constructor is Object; Object.create(null) has undefined constructor.
+  // lastPlainCtor covers instances of the most recently seen ordinary class.
   // Everything else falls through the dispatch chain below.
-  if (ctorA === objectConstructor || ctorA === undefined) {
+  if (ctorA === objectConstructor || ctorA === undefined || ctorA === lastPlainCtor) {
     return equalPlainObjects(valA, valB, visited);
   }
 
@@ -208,9 +232,14 @@ function deepEqual(valA: any, valB: any, visited: Map<any, any> | null): boolean
     return valA.source === valB.source && valA.flags === valB.flags;
   }
 
-  // Promise and Error - reference equality only
-  if (ctorA === promiseConstructor || ctorA === errorConstructor) {
+  // Promise - reference equality only
+  if (ctorA === promiseConstructor) {
     return false;
+  }
+
+  // Error - equal when name and message match
+  if (ctorA === errorConstructor) {
+    return valA.name === valB.name && valA.message === valB.message;
   }
 
   // Arrays - optimized
@@ -265,117 +294,14 @@ function deepEqual(valA: any, valB: any, visited: Map<any, any> | null): boolean
     return true;
   }
 
-  // Map - optimized
+  // Map
   if (ctorA === mapConstructor) {
-    const mapA = valA as Map<any, any>;
-    const mapB = valB as Map<any, any>;
-
-    if (mapA.size !== mapB.size) return false;
-
-    // Empty maps
-    if (mapA.size === 0) return true;
-
-    // Allocate the visited map lazily on first use
-    if (visited === null) visited = new Map();
-    visited.set(valA, valB);
-    visited.set(valB, valA);
-
-    // Optimized iteration
-    for (const [key, valueA] of mapA) {
-      // Fast primitive key path
-      const keyType = typeof key;
-      if (keyType !== TYPEOF_OBJECT && keyType !== TYPEOF_FUNCTION) {
-        if (!mapB.has(key)) return false;
-        const valueB = mapB.get(key);
-        if (valueA !== valueB && !deepEqual(valueA, valueB, visited)) {
-          return false;
-        }
-      } else {
-        // Complex key - need full search
-        let found = false;
-        for (const [keyB, valueB] of mapB) {
-          if (deepEqual(key, keyB, visited) && deepEqual(valueA, valueB, visited)) {
-            found = true;
-            break;
-          }
-        }
-        if (!found) return false;
-      }
-    }
-    return true;
+    return equalMaps(valA, valB, visited);
   }
 
-  // Set - highly optimized
+  // Set
   if (ctorA === setConstructor) {
-    const setA = valA as Set<any>;
-    const setB = valB as Set<any>;
-
-    if (setA.size !== setB.size) return false;
-
-    // Empty sets
-    if (setA.size === 0) return true;
-
-    // Early visited check - allocate the map lazily on first use
-    if (visited === null) visited = new Map();
-    visited.set(valA, valB);
-    visited.set(valB, valA);
-
-    // For equal sets, we can optimize by checking if all primitives exist first
-    let hasPrimitives = false;
-    let hasObjects = false;
-
-    // First pass - categorize and check primitives
-    for (const val of setA) {
-      const valType = typeof val;
-      if (valType === TYPEOF_OBJECT || valType === TYPEOF_FUNCTION) {
-        hasObjects = true;
-      } else {
-        hasPrimitives = true;
-        if (!setB.has(val)) return false; // Fast fail for primitives
-      }
-    }
-
-    // If only primitives, we're done
-    if (!hasObjects) return true;
-
-    // For objects, create arrays for matching
-    const objectsA: any[] = [];
-    const objectsB: any[] = [];
-
-    for (const val of setA) {
-      const valType = typeof val;
-      if (valType === TYPEOF_OBJECT || valType === TYPEOF_FUNCTION) {
-        objectsA.push(val);
-      }
-    }
-
-    for (const val of setB) {
-      const valType = typeof val;
-      if (valType === TYPEOF_OBJECT || valType === TYPEOF_FUNCTION) {
-        objectsB.push(val);
-      }
-    }
-
-    // Match objects
-    const used = new Uint8Array(objectsB.length);
-    for (const valA of objectsA) {
-      let found = false;
-      for (let j = 0; j < objectsB.length; j++) {
-        if (!used[j]) {
-          // visited is always non-null here - the Set branch marks the pair
-          // (allocating on demand) before object matching begins
-          const newVisited = new Map(visited);
-          if (deepEqual(valA, objectsB[j], newVisited)) {
-            used[j] = 1;
-            found = true;
-            break;
-          }
-        }
-      }
-      if (!found) return false;
-    }
-
-    return true;
+    return equalSets(valA, valB, visited);
   }
 
   // ArrayBuffer - optimized
@@ -500,8 +426,160 @@ function deepEqual(valA: any, valB: any, visited: Map<any, any> | null): boolean
     return true;
   }
 
-  // Class instances etc. end up in the same plain-object comparison
+  // Rare kinds. Only objects that are not plain, not arrays, not one of the
+  // exact built-ins above and not instances of the cached class get here.
+
+  // Boxed Number / Boolean - compare the wrapped primitive, NaN equals NaN
+  if (ctorA === numberConstructor || ctorA === booleanConstructor) {
+    const primA = +valA;
+    const primB = +valB;
+    return primA === primB || (primA !== primA && primB !== primB);
+  }
+
+  // Boxed Symbol / BigInt - compare the wrapped primitive
+  if (ctorA === symbolConstructor || ctorA === bigIntConstructor) {
+    return valA.valueOf() === valB.valueOf();
+  }
+
+  // WeakMap / WeakSet - contents cannot be inspected, reference equality only
+  if (ctorA === weakMapConstructor || ctorA === weakSetConstructor) {
+    return false;
+  }
+
+  // Subclasses of built-ins compare like the built-in they extend
+  if (valA instanceof dateConstructor) {
+    const timeA = valA.getTime();
+    const timeB = valB.getTime();
+    return timeA === timeB || (timeA !== timeA && timeB !== timeB);
+  }
+  if (valA instanceof regExpConstructor) {
+    return valA.source === valB.source && valA.flags === valB.flags;
+  }
+  if (valA instanceof mapConstructor) {
+    return equalMaps(valA, valB, visited);
+  }
+  if (valA instanceof setConstructor) {
+    return equalSets(valA, valB, visited);
+  }
+  if (valA instanceof errorConstructor) {
+    return valA.name === valB.name && valA.message === valB.message;
+  }
+  if (valA instanceof promiseConstructor) {
+    return false;
+  }
+
+  // An ordinary class instance - remember its constructor so the next
+  // instance skips the dispatch chain, then compare own properties
+  if (typeof ctorA === TYPEOF_FUNCTION) lastPlainCtor = ctorA;
   return equalPlainObjects(valA, valB, visited);
+}
+
+// Map - optimized
+function equalMaps(valA: any, valB: any, visited: Map<any, any> | null): boolean {
+  const mapA = valA as Map<any, any>;
+  const mapB = valB as Map<any, any>;
+
+  if (mapA.size !== mapB.size) return false;
+
+  // Empty maps
+  if (mapA.size === 0) return true;
+
+  // Allocate the visited map lazily on first use
+  if (visited === null) visited = new Map();
+  visited.set(valA, valB);
+  visited.set(valB, valA);
+
+  // Optimized iteration
+  for (const [key, valueA] of mapA) {
+    // Fast path for keys compared by identity (primitives and functions)
+    if (typeof key !== TYPEOF_OBJECT) {
+      if (!mapB.has(key)) return false;
+      const valueB = mapB.get(key);
+      if (valueA !== valueB && !deepEqual(valueA, valueB, visited)) {
+        return false;
+      }
+    } else {
+      // Complex key - need full search
+      let found = false;
+      for (const [keyB, valueB] of mapB) {
+        if (deepEqual(key, keyB, visited) && deepEqual(valueA, valueB, visited)) {
+          found = true;
+          break;
+        }
+      }
+      if (!found) return false;
+    }
+  }
+  return true;
+}
+
+// Set - highly optimized
+function equalSets(valA: any, valB: any, visited: Map<any, any> | null): boolean {
+  const setA = valA as Set<any>;
+  const setB = valB as Set<any>;
+
+  if (setA.size !== setB.size) return false;
+
+  // Empty sets
+  if (setA.size === 0) return true;
+
+  // Early visited check - allocate the map lazily on first use
+  if (visited === null) visited = new Map();
+  visited.set(valA, valB);
+  visited.set(valB, valA);
+
+  // For equal sets, we can optimize by checking if all primitives exist first
+  let hasObjects = false;
+
+  // First pass - categorize and check primitives
+  for (const val of setA) {
+    if (typeof val === TYPEOF_OBJECT) {
+      hasObjects = true;
+    } else if (!setB.has(val)) {
+      // Primitives and functions are compared by identity
+      return false;
+    }
+  }
+
+  // If only primitives, we're done
+  if (!hasObjects) return true;
+
+  // For objects, create arrays for matching
+  const objectsA: any[] = [];
+  const objectsB: any[] = [];
+
+  for (const val of setA) {
+    if (typeof val === TYPEOF_OBJECT) {
+      objectsA.push(val);
+    }
+  }
+
+  for (const val of setB) {
+    if (typeof val === TYPEOF_OBJECT) {
+      objectsB.push(val);
+    }
+  }
+
+  // Match objects
+  const used = new Uint8Array(objectsB.length);
+  for (const valA of objectsA) {
+    let found = false;
+    for (let j = 0; j < objectsB.length; j++) {
+      if (!used[j]) {
+        // visited is always non-null here - the Set branch marks the pair
+        // (allocating on demand) before object matching begins
+        const newVisited = new Map(visited);
+        if (deepEqual(valA, objectsB[j], newVisited)) {
+          used[j] = 1;
+          found = true;
+          break;
+        }
+      }
+    }
+    if (!found) return false;
+  }
+
+  return true;
 }
 
 // Plain objects - highly optimized
@@ -544,8 +622,10 @@ function equalPlainObjects(valA: any, valB: any, visited: Map<any, any> | null):
     if (propA !== propB) {
       // Only do deep comparison if needed
       const propTypeA = typeof propA;
-      if (propTypeA === TYPEOF_OBJECT || propTypeA === TYPEOF_FUNCTION) {
-        if (!deepEqual(propA, propB, visited)) return false;
+      if (propTypeA === TYPEOF_OBJECT) {
+        // An object can only equal another non-null object
+        if (propA === null || propB === null || typeof propB !== TYPEOF_OBJECT) return false;
+        if (!deepEqualObjects(propA, propB, visited)) return false;
       } else if (propTypeA === TYPEOF_NUMBER) {
         if (!(isNaN(propA) && isNaN(propB))) return false;
       } else {

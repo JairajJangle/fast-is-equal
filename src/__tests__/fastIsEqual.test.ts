@@ -733,10 +733,52 @@ describe('fastIsEqual', () => {
         expect(fastIsEqual(err, err)).toBe(true);
       });
 
-      it('should return false for different Error instances with same message', () => {
+      it('should return true for different Error instances with the same name and message', () => {
         const err1 = new Error('test');
         const err2 = new Error('test');
+        expect(fastIsEqual(err1, err2)).toBe(true);
+      });
+
+      it('should return false for errors with different messages', () => {
+        expect(fastIsEqual(new Error('a'), new Error('b'))).toBe(false);
+        expect(fastIsEqual(new TypeError('a'), new TypeError('b'))).toBe(false);
+        expect(fastIsEqual(new TypeError('b'), new TypeError('a'))).toBe(false);
+      });
+
+      it('should return false for errors with different names', () => {
+        const err1 = new Error('test');
+        const err2 = new Error('test');
+        err2.name = 'OtherError';
         expect(fastIsEqual(err1, err2)).toBe(false);
+
+        const typeErr1 = new TypeError('test');
+        const typeErr2 = new TypeError('test');
+        typeErr2.name = 'OtherError';
+        expect(fastIsEqual(typeErr1, typeErr2)).toBe(false);
+      });
+
+      it('should return false for errors of different types', () => {
+        expect(fastIsEqual(new Error('a'), new TypeError('a'))).toBe(false);
+        expect(fastIsEqual(new RangeError('a'), new TypeError('a'))).toBe(false);
+      });
+
+      it('should compare built-in error subclasses by name and message', () => {
+        expect(fastIsEqual(new TypeError('a'), new TypeError('a'))).toBe(true);
+        expect(fastIsEqual(new RangeError('a'), new RangeError('a'))).toBe(true);
+      });
+
+      it('should compare custom error subclasses by name and message', () => {
+        class HttpError extends Error { }
+        expect(fastIsEqual(new HttpError('a'), new HttpError('a'))).toBe(true);
+        expect(fastIsEqual(new HttpError('a'), new HttpError('b'))).toBe(false);
+        expect(fastIsEqual(new HttpError('b'), new HttpError('a'))).toBe(false);
+      });
+
+      it('should compare errors nested in objects and arrays', () => {
+        expect(fastIsEqual({ e: new TypeError('a') }, { e: new TypeError('a') })).toBe(true);
+        expect(fastIsEqual({ e: new TypeError('a') }, { e: new TypeError('b') })).toBe(false);
+        expect(fastIsEqual([new Error('a')], [new Error('a')])).toBe(true);
+        expect(fastIsEqual([new Error('a')], [new Error('b')])).toBe(false);
       });
     });
 
@@ -774,6 +816,258 @@ describe('fastIsEqual', () => {
         const func2 = () => { };
         func2.customProp = 'value';
         expect(fastIsEqual(func1, func2)).toBe(false);
+      });
+
+      it('should compare functions nested in objects by reference', () => {
+        const shared = () => 1;
+        expect(fastIsEqual({ f: shared }, { f: shared })).toBe(true);
+        expect(fastIsEqual({ f: () => 1 }, { f: () => 1 })).toBe(false);
+        expect(fastIsEqual({ a: { f: () => 1 } }, { a: { f: () => 1 } })).toBe(false);
+        expect(fastIsEqual({ f: () => 1 }, { f: {} })).toBe(false);
+        expect(fastIsEqual({ f: {} }, { f: () => 1 })).toBe(false);
+      });
+
+      it('should compare functions nested in arrays by reference', () => {
+        const shared = () => 1;
+        expect(fastIsEqual([shared], [shared])).toBe(true);
+        expect(fastIsEqual([() => 1], [() => 1])).toBe(false);
+        expect(fastIsEqual([, () => 1], [, () => 1])).toBe(false);
+        expect(fastIsEqual([() => 1], [{}])).toBe(false);
+
+        const long1 = [1, 2, 3, 4, 5, 6, 7, 8, () => 1];
+        const long2 = [1, 2, 3, 4, 5, 6, 7, 8, () => 1];
+        expect(fastIsEqual(long1, long2)).toBe(false);
+        const long3 = [1, 2, 3, 4, 5, 6, 7, 8, shared];
+        const long4 = [1, 2, 3, 4, 5, 6, 7, 8, shared];
+        expect(fastIsEqual(long3, long4)).toBe(true);
+      });
+
+      it('should compare nested functions with matching properties by reference', () => {
+        const func1 = () => { };
+        func1.customProp = 'value';
+        const func2 = () => { };
+        func2.customProp = 'value';
+        expect(fastIsEqual({ f: func1 }, { f: func2 })).toBe(false);
+      });
+
+      it('should compare functions in Maps and Sets by reference', () => {
+        const fn1 = () => 1;
+        const fn2 = () => 1;
+        expect(fastIsEqual(new Map([['k', fn1]]), new Map([['k', fn1]]))).toBe(true);
+        expect(fastIsEqual(new Map([['k', fn1]]), new Map([['k', fn2]]))).toBe(false);
+        expect(fastIsEqual(new Map([[fn1, 1]]), new Map([[fn1, 1]]))).toBe(true);
+        expect(fastIsEqual(new Map([[fn1, 1]]), new Map([[fn2, 1]]))).toBe(false);
+        expect(fastIsEqual(new Set([fn1]), new Set([fn1]))).toBe(true);
+        expect(fastIsEqual(new Set([fn1]), new Set([fn2]))).toBe(false);
+        expect(fastIsEqual(new Set([fn1, { a: 1 }]), new Set([fn1, { a: 1 }]))).toBe(true);
+        expect(fastIsEqual(new Set([fn1, { a: 1 }]), new Set([fn2, { a: 1 }]))).toBe(false);
+      });
+    });
+
+    describe('Boxed primitives', () => {
+      it('should compare boxed numbers by value', () => {
+        expect(fastIsEqual(new Number(1), new Number(1))).toBe(true);
+        expect(fastIsEqual(new Number(1), new Number(2))).toBe(false);
+        expect(fastIsEqual(new Number(2), new Number(1))).toBe(false);
+        expect(fastIsEqual(new Number(NaN), new Number(NaN))).toBe(true);
+        expect(fastIsEqual(new Number(NaN), new Number(1))).toBe(false);
+        expect(fastIsEqual(new Number(1), new Number(NaN))).toBe(false);
+        expect(fastIsEqual(new Number(0), new Number(-0))).toBe(true);
+      });
+
+      it('should compare boxed booleans by value', () => {
+        expect(fastIsEqual(new Boolean(true), new Boolean(true))).toBe(true);
+        expect(fastIsEqual(new Boolean(false), new Boolean(false))).toBe(true);
+        expect(fastIsEqual(new Boolean(true), new Boolean(false))).toBe(false);
+        expect(fastIsEqual(new Boolean(false), new Boolean(true))).toBe(false);
+      });
+
+      it('should compare boxed strings by value', () => {
+        expect(fastIsEqual(new String('a'), new String('a'))).toBe(true);
+        expect(fastIsEqual(new String(''), new String(''))).toBe(true);
+        expect(fastIsEqual(new String('a'), new String('b'))).toBe(false);
+        expect(fastIsEqual(new String('a'), new String('ab'))).toBe(false);
+      });
+
+      it('should compare boxed symbols by identity', () => {
+        const sym = Symbol('s');
+        expect(fastIsEqual(Object(sym), Object(sym))).toBe(true);
+        expect(fastIsEqual(Object(Symbol('s')), Object(Symbol('s')))).toBe(false);
+      });
+
+      it('should compare boxed bigints by value', () => {
+        expect(fastIsEqual(Object(BigInt(1)), Object(BigInt(1)))).toBe(true);
+        expect(fastIsEqual(Object(BigInt(1)), Object(BigInt(2)))).toBe(false);
+        expect(fastIsEqual(Object(BigInt(2)), Object(BigInt(1)))).toBe(false);
+      });
+
+      it('should load and compare on engines without BigInt', () => {
+        const original = globalThis.BigInt;
+        delete (globalThis as any).BigInt;
+        try {
+          jest.isolateModules(() => {
+            const isolated = require('../index').fastIsEqual;
+            expect(isolated(new Number(1), new Number(1))).toBe(true);
+            expect(isolated(new Number(1), new Number(2))).toBe(false);
+            expect(isolated(Object(Symbol.iterator), Object(Symbol.iterator))).toBe(true);
+            expect(isolated({ a: { b: 1 } }, { a: { b: 1 } })).toBe(true);
+          });
+        } finally {
+          globalThis.BigInt = original;
+        }
+      });
+
+      it('should not equate a boxed value with its primitive or another wrapper type', () => {
+        expect(fastIsEqual(new Number(1), 1)).toBe(false);
+        expect(fastIsEqual(1, new Number(1))).toBe(false);
+        expect(fastIsEqual(new Boolean(true), true)).toBe(false);
+        expect(fastIsEqual(new Number(1), new Boolean(true))).toBe(false);
+        expect(fastIsEqual(new String('1'), new Number(1))).toBe(false);
+      });
+
+      it('should compare boxed primitives nested in objects and arrays', () => {
+        expect(fastIsEqual({ n: new Number(1) }, { n: new Number(1) })).toBe(true);
+        expect(fastIsEqual({ n: new Number(1) }, { n: new Number(2) })).toBe(false);
+        expect(fastIsEqual([new Boolean(true)], [new Boolean(true)])).toBe(true);
+        expect(fastIsEqual([new Boolean(true)], [new Boolean(false)])).toBe(false);
+        const long1 = [1, 2, 3, 4, 5, 6, 7, 8, new Number(1)];
+        const long2 = [1, 2, 3, 4, 5, 6, 7, 8, new Number(2)];
+        expect(fastIsEqual(long1, long2)).toBe(false);
+      });
+    });
+
+    describe('Weak collections', () => {
+      it('should compare WeakMaps by reference', () => {
+        const key = {};
+        const weakMap = new WeakMap([[key, 1]]);
+        expect(fastIsEqual(weakMap, weakMap)).toBe(true);
+        expect(fastIsEqual(new WeakMap(), new WeakMap())).toBe(false);
+        expect(fastIsEqual(new WeakMap([[key, 1]]), new WeakMap([[key, 1]]))).toBe(false);
+      });
+
+      it('should compare WeakSets by reference', () => {
+        const key = {};
+        const weakSet = new WeakSet([key]);
+        expect(fastIsEqual(weakSet, weakSet)).toBe(true);
+        expect(fastIsEqual(new WeakSet(), new WeakSet())).toBe(false);
+        expect(fastIsEqual(new WeakSet([key]), new WeakSet([key]))).toBe(false);
+      });
+
+      it('should compare weak collections nested in objects by reference', () => {
+        const weakMap = new WeakMap();
+        expect(fastIsEqual({ w: weakMap }, { w: weakMap })).toBe(true);
+        expect(fastIsEqual({ w: new WeakMap() }, { w: new WeakMap() })).toBe(false);
+      });
+    });
+
+    describe('Subclasses of built-ins', () => {
+      class UTCDate extends Date { }
+      class TaggedRegExp extends RegExp { }
+      class Registry extends Map<any, any> { }
+      class Bag extends Set<any> { }
+      class Deferred<T> extends Promise<T> { }
+
+      it('should compare Date subclasses by time value', () => {
+        expect(fastIsEqual(new UTCDate(5), new UTCDate(5))).toBe(true);
+        expect(fastIsEqual(new UTCDate(0), new UTCDate(1))).toBe(false);
+        expect(fastIsEqual(new UTCDate(1), new UTCDate(0))).toBe(false);
+        expect(fastIsEqual(new UTCDate(NaN), new UTCDate(NaN))).toBe(true);
+        expect(fastIsEqual(new UTCDate(NaN), new UTCDate(0))).toBe(false);
+        expect(fastIsEqual(new UTCDate(0), new UTCDate(NaN))).toBe(false);
+      });
+
+      it('should not equate a Date subclass with a plain Date', () => {
+        expect(fastIsEqual(new UTCDate(5), new Date(5))).toBe(false);
+      });
+
+      it('should compare RegExp subclasses by source and flags', () => {
+        expect(fastIsEqual(new TaggedRegExp('a', 'g'), new TaggedRegExp('a', 'g'))).toBe(true);
+        expect(fastIsEqual(new TaggedRegExp('a', 'g'), new TaggedRegExp('b', 'g'))).toBe(false);
+        expect(fastIsEqual(new TaggedRegExp('a', 'g'), new TaggedRegExp('a', 'i'))).toBe(false);
+      });
+
+      it('should compare Map subclasses by entries', () => {
+        expect(fastIsEqual(new Registry([[1, { a: 1 }]]), new Registry([[1, { a: 1 }]]))).toBe(true);
+        expect(fastIsEqual(new Registry([[1, 1]]), new Registry([[1, 2]]))).toBe(false);
+        expect(fastIsEqual(new Registry([[1, 1]]), new Registry([[2, 1]]))).toBe(false);
+        expect(fastIsEqual(new Registry(), new Registry())).toBe(true);
+      });
+
+      it('should compare Set subclasses by members', () => {
+        expect(fastIsEqual(new Bag([1, { a: 1 }]), new Bag([1, { a: 1 }]))).toBe(true);
+        expect(fastIsEqual(new Bag([1]), new Bag([2]))).toBe(false);
+        expect(fastIsEqual(new Bag(), new Bag())).toBe(true);
+      });
+
+      it('should compare Promise subclasses by reference', () => {
+        const deferred = Deferred.resolve(1);
+        expect(fastIsEqual(deferred, deferred)).toBe(true);
+        expect(fastIsEqual(Deferred.resolve(1), Deferred.resolve(1))).toBe(false);
+      });
+
+      it('should compare subclass instances nested in objects', () => {
+        expect(fastIsEqual({ d: new UTCDate(1) }, { d: new UTCDate(1) })).toBe(true);
+        expect(fastIsEqual({ d: new UTCDate(1) }, { d: new UTCDate(2) })).toBe(false);
+        expect(fastIsEqual({ m: new Registry([[1, 1]]) }, { m: new Registry([[1, 2]]) })).toBe(false);
+      });
+    });
+
+    describe('Class instance dispatch', () => {
+      class Point {
+        constructor(public x: number, public y: number) { }
+      }
+      class Size {
+        constructor(public w: number, public h: number) { }
+      }
+      class Point3 extends Point {
+        constructor(x: number, y: number, public z: number) {
+          super(x, y);
+        }
+      }
+
+      it('should keep comparing correctly when classes alternate', () => {
+        expect(fastIsEqual(new Point(1, 2), new Point(1, 2))).toBe(true);
+        expect(fastIsEqual(new Size(1, 2), new Size(1, 2))).toBe(true);
+        expect(fastIsEqual(new Point(1, 2), new Point(1, 3))).toBe(false);
+        expect(fastIsEqual(new Size(1, 2), new Size(9, 2))).toBe(false);
+        expect(fastIsEqual(new Point(1, 2), new Point(1, 2))).toBe(true);
+      });
+
+      it('should not equate instances of different classes with the same fields', () => {
+        expect(fastIsEqual(new Point(1, 2), new Point(1, 2))).toBe(true);
+        expect(fastIsEqual(new Point(1, 2), { x: 1, y: 2 })).toBe(false);
+        expect(fastIsEqual(new Point3(1, 2, 3), new Point(1, 2))).toBe(false);
+      });
+
+      it('should compare instances of derived classes by own properties', () => {
+        expect(fastIsEqual(new Point3(1, 2, 3), new Point3(1, 2, 3))).toBe(true);
+        expect(fastIsEqual(new Point3(1, 2, 3), new Point3(1, 2, 4))).toBe(false);
+      });
+
+      it('should compare a built-in after a class instance and the reverse', () => {
+        expect(fastIsEqual(new Point(1, 2), new Point(1, 2))).toBe(true);
+        expect(fastIsEqual(new Number(1), new Number(2))).toBe(false);
+        expect(fastIsEqual(new Point(1, 2), new Point(2, 2))).toBe(false);
+      });
+
+      it('should compare objects whose constructor property is not a function', () => {
+        expect(fastIsEqual({ constructor: 'x', a: 1 }, { constructor: 'x', a: 1 })).toBe(true);
+        expect(fastIsEqual({ constructor: 'x', a: 1 }, { constructor: 'x', a: 2 })).toBe(false);
+        expect(fastIsEqual({ constructor: 'x', a: 1 }, { constructor: 'y', a: 1 })).toBe(false);
+      });
+    });
+
+    describe('Mismatched nested value kinds', () => {
+      it('should return false for null against an object in a property', () => {
+        expect(fastIsEqual({ a: null }, { a: {} })).toBe(false);
+        expect(fastIsEqual({ a: {} }, { a: null })).toBe(false);
+      });
+
+      it('should return false for an object against a primitive in a property', () => {
+        expect(fastIsEqual({ a: {} }, { a: 1 })).toBe(false);
+        expect(fastIsEqual({ a: 1 }, { a: {} })).toBe(false);
+        expect(fastIsEqual({ a: {} }, { a: 'x' })).toBe(false);
+        expect(fastIsEqual({ a: {} }, { a: undefined })).toBe(false);
       });
     });
   });
