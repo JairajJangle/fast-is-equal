@@ -1,0 +1,79 @@
+Before: 92d18e0 (src/index.ts)   After: working tree
+Node v26.13.1, best of 9 alternating rounds, ns per call
+A case fails when it is below 0.97x and more than 0.5 ns slower
+
+Case                                         Before       After    Ratio  Note
+------------------------------------------------------------------------------
+Numbers                                         4.0         3.9    1.01x  
+Strings                                         5.3         5.3    1.00x  
+Booleans                                        5.3         5.3    1.01x  
+NaN                                             6.2         6.1    1.02x  
+Large Numbers                                   5.9         5.9    1.00x  
+Negative Zero                                   5.6         5.7    0.99x  
+Empty Objects                                  86.7        37.8    2.29x  
+Single Property Object                         71.7        41.9    1.71x  
+Simple Object (equal)                          96.2        63.1    1.53x  
+Simple Object (unequal)                        77.0        45.5    1.69x  
+Object with null prototype                    174.1        97.8    1.78x  
+Nested Object (equal)                         306.7       188.0    1.63x  
+Nested Object (unequal)                       269.2       129.3    2.08x  
+Deeply Nested (5 levels)                      587.3       370.9    1.58x  
+Empty Arrays                                   19.6        20.1    0.98x  
+Single Element Array                           21.1        21.7    0.97x  
+Array of Primitives (equal)                    21.5        22.1    0.97x  
+Array of Primitives (unequal)                  21.6        21.8    0.99x  
+Large Array of Numbers (100)                  174.0        92.4    1.88x  
+Array of Strings                               32.6        32.4    1.01x  
+Mixed Type Array                               32.9        33.1    0.99x  
+Sparse Array                                   32.0        32.4    0.99x  
+Array of Objects (equal)                      207.6       139.5    1.49x  
+Uint8Array                                     37.0        35.7    1.04x  
+Float32Array                                   40.3        38.4    1.05x  
+Large TypedArray (1000)                       911.8       910.5    1.00x  
+ArrayBuffer (small)                            63.6        62.4    1.02x  
+Dates (equal)                                  19.2        19.5    0.98x  
+RegExp (equal)                                 39.9        40.9    0.98x  
+RegExp (unequal flags)                         41.5        42.2    0.98x  
+Circular Reference                            108.7        82.3    1.32x  
+Mutual Circular                               209.2       163.5    1.28x  
+Empty Map                                      34.5        33.2    1.04x  
+Map with primitives                            75.8        50.9    1.49x  
+Map (unequal)                                  72.9        49.1    1.48x  
+Large Map (50 entries)                        901.0       850.0    1.06x  
+Empty Set                                      34.4        33.5    1.03x  
+Set of numbers                                 66.8        45.0    1.49x  
+Set (unequal)                                  65.5        43.5    1.51x  
+Set of strings                                 73.8        52.7    1.40x  
+Large Set (100 items)                         581.1       526.1    1.10x  
+Object vs Array                                 9.0         9.0    1.00x  
+Map vs Set                                     17.7        17.8    1.00x  
+String vs Number                                5.9         5.9    1.00x  
+Boolean vs Number                               5.9         5.8    1.03x  
+User Object                                   148.1       109.4    1.35x  
+API Response                                  584.5       360.8    1.62x  
+Config Object                                 197.6       149.9    1.32x  
+State Object                                  358.2       236.2    1.52x  
+Class instance                                115.3        86.2    1.34x  
+Derived class instance                        131.0       104.8    1.25x  
+Keys in different order                       146.4       109.6    1.34x  
+Object with symbol key                        250.8       240.2    1.04x  
+Array of 100 flat objects                   14754.1      8380.3    1.76x  
+Tree (depth 4, width 4)                     55359.5     34015.2    1.63x  
+Chain (depth 20)                             3186.5      2486.0    1.28x  
+Chain (depth 200)                           30858.5     29278.3    1.05x  
+Chain (depth 2000)                         313607.1    301112.9    1.04x  
+Shared-reference tree vs clone                204.5       518.1    0.39x  result changed, not comparable
+Shared-reference trees (both shared)          430.7       265.3    1.62x  
+Unshared trees (clone vs clone)               798.1       524.8    1.52x  
+Array reusing one object (both sides)         915.2       547.1    1.67x  
+Map with object values                       1487.3       819.1    1.82x  
+Set of objects                               2169.7       929.2    2.34x  
+Boxed Number                                  128.7        57.1    2.25x  
+Invalid Dates                                  18.7        19.7    0.95x  result changed, not comparable
+Float64Array (1000)                          1389.6      1389.0    1.00x  
+Float64Array with NaN                          41.7        40.6    1.03x  result changed, not comparable
+Parent-pointer chain (depth 10)              1948.0      1377.1    1.41x  
+Parent-pointer chain (depth 200)            37209.9     41545.3    0.90x  known exception
+
+Geometric mean speedup over 66 comparable cases: 1.27x
+No case is slower
