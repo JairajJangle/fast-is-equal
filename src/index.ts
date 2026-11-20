@@ -32,6 +32,105 @@ const weakSetConstructor = WeakSet;
 // then take the plain-object path directly.
 let lastPlainCtor: unknown = null;
 
+// Cycle tracker: the pairs of containers currently being compared, innermost
+// last. It is one array so that ordinary nesting costs a single allocation:
+//
+//   [indexA, seenB, top, verified, a0, b0, a1, b1, ...]
+//
+// - top: index of the next free slot. Slots at or above it are stale.
+// - indexA, seenB, verified: used only past DEEP_LIMIT, see enter() and
+//   noDuplicateB().
+//
+// A pair is pushed only right before its container recurses, and popped when
+// the container turns out equal. A failed comparison leaves its entries
+// behind, because `false` propagates to the top; the two callers that keep
+// going after a failure (Map key and Set member matching) restore `top`.
+type Tracker = any[];
+const TRACK_INDEX_A = 0;
+const TRACK_SEEN_B = 1;
+const TRACK_TOP = 2;
+const TRACK_VERIFIED = 3;
+const TRACK_FIRST = 4;
+
+// Nesting depth, in pairs, up to which the cycle check scans the stack.
+// Deeper comparisons switch to a Map index so the check stays O(1).
+const DEEP_PAIRS = 24;
+const DEEP_LIMIT = TRACK_FIRST + 2 * DEEP_PAIRS;
+
+// In deep mode, how many of the innermost pairs are checked by scanning
+// before falling back to the index
+const NEAR_PAIRS = 2;
+
+// Pushes a pair, creating the tracker on first use. Returns the tracker.
+function enter(tracker: Tracker | null, valA: any, valB: any): Tracker {
+  if (tracker === null) {
+    // Room for 7 pairs before the array has to grow
+    return [
+      null, null, TRACK_FIRST + 2, 0, valA, valB,
+      null, null, null, null, null, null, null, null, null, null, null, null
+    ];
+  }
+
+  const top = tracker[TRACK_TOP];
+  tracker[top] = valA;
+  tracker[top + 1] = valB;
+  tracker[TRACK_TOP] = top + 2;
+
+  const indexA = tracker[TRACK_INDEX_A];
+  if (indexA !== null) {
+    indexA.set(valA, top);
+  } else if (top >= DEEP_LIMIT) {
+    // Too deep to keep scanning: index every A object by its stack slot.
+    // Entries are never deleted; a lookup is valid only while its slot is
+    // below `top` and still holds the object.
+    const index = new Map();
+    for (let k = TRACK_FIRST; k <= top; k += 2) index.set(tracker[k], k);
+    tracker[TRACK_INDEX_A] = index;
+    tracker[TRACK_VERIFIED] = TRACK_FIRST;
+  }
+  return tracker;
+}
+
+// Pops the innermost pair
+function leave(tracker: Tracker): void {
+  const top = tracker[TRACK_TOP] - 2;
+  tracker[TRACK_TOP] = top;
+  if (tracker[TRACK_VERIFIED] > top) tracker[TRACK_VERIFIED] = top;
+}
+
+// Drops every pair pushed since `mark` was read from TRACK_TOP
+function truncate(tracker: Tracker, mark: number): void {
+  tracker[TRACK_TOP] = mark;
+  if (tracker[TRACK_VERIFIED] > mark) tracker[TRACK_VERIFIED] = mark;
+}
+
+// Deep mode only. While scanning, a B object that is already in progress
+// under a different partner fails the comparison immediately. Deep mode
+// skips that test on the way down and runs it here instead, when an A object
+// closes a cycle: true when no B object is on the stack twice. Slots below
+// `verified` are already recorded, so each pair is recorded once per visit
+// and acyclic data never gets here.
+function noDuplicateB(tracker: Tracker): boolean {
+  let seenB = tracker[TRACK_SEEN_B];
+  if (seenB === null) seenB = tracker[TRACK_SEEN_B] = new Set();
+
+  const top = tracker[TRACK_TOP];
+  for (let k = tracker[TRACK_VERIFIED]; k < top; k += 2) {
+    const b = tracker[k + 1];
+    const size = seenB.size;
+    seenB.add(b);
+    if (seenB.size === size) {
+      // Recorded before. Either it was popped since, or it is still on the
+      // stack under another partner - the stack itself tells which.
+      for (let j = k - 1; j > TRACK_FIRST; j -= 2) {
+        if (tracker[j] === b) return false;
+      }
+    }
+  }
+  tracker[TRACK_VERIFIED] = top;
+  return true;
+}
+
 export function fastIsEqual(a: any, b: any) {
   // Fast path for strict equality
   if (a === b) return true;
@@ -174,7 +273,7 @@ export function fastIsEqual(a: any, b: any) {
   return deepEqualObjects(a, b, null);
 }
 
-function deepEqual(valA: any, valB: any, visited: Map<any, any> | null): boolean {
+function deepEqual(valA: any, valB: any, visited: Tracker | null): boolean {
   // Fast equality check
   if (valA === valB) return true;
 
@@ -200,12 +299,30 @@ function deepEqual(valA: any, valB: any, visited: Map<any, any> | null): boolean
 }
 
 // Both values are non-null objects and are not identical
-function deepEqualObjects(valA: any, valB: any, visited: Map<any, any> | null): boolean {
-  // Check visited - only when a map has actually been allocated
+function deepEqualObjects(valA: any, valB: any, visited: Tracker | null): boolean {
+  // Cycle check - only when something is in progress. A pair that is already
+  // being compared is equal as far as this path is concerned; an object that
+  // is in progress under a different partner is not.
   if (visited !== null) {
-    const visitedVal = visited.get(valA);
-    if (visitedVal !== undefined) return visitedVal === valB;
-    if (visited.has(valB)) return false;
+    const top = visited[TRACK_TOP];
+    const indexA = visited[TRACK_INDEX_A];
+    if (indexA === null) {
+      for (let k = top - 2; k >= TRACK_FIRST; k -= 2) {
+        if (visited[k] === valA) return visited[k + 1] === valB;
+        if (visited[k + 1] === valB) return false;
+      }
+    } else {
+      // Nearby ancestors first: links back to a parent or grandparent are
+      // the common cycle and are cheaper to find by looking than by hashing
+      const stop = top - 2 * NEAR_PAIRS;
+      for (let k = top - 2; k >= stop && k >= TRACK_FIRST; k -= 2) {
+        if (visited[k] === valA) return visited[k + 1] === valB && noDuplicateB(visited);
+      }
+      const k = indexA.get(valA);
+      if (k !== undefined && k < top && visited[k] === valA) {
+        return visited[k + 1] === valB && noDuplicateB(visited);
+      }
+    }
   }
 
   // Constructor check
@@ -247,13 +364,11 @@ function deepEqualObjects(valA: any, valB: any, visited: Map<any, any> | null): 
     const len = valA.length;
     if (len !== valB.length) return false;
 
-    // Mark visited early - allocate the map lazily on first use
-    if (visited === null) visited = new Map();
-    visited.set(valA, valB);
-    visited.set(valB, valA);
-
     // Empty arrays
     if (len === 0) return true;
+
+    // The pair is tracked from the first element that needs recursion
+    let entered = false;
 
     // Phase 1 - dense fast loop, no `in` operator at all
     let i = 0;
@@ -271,11 +386,20 @@ function deepEqualObjects(valA: any, valB: any, visited: Map<any, any> | null): 
       // Possible hole or explicit undefined - fall to sparse-aware loop for the rest
       if (elemA === undefined || elemB === undefined) break;
 
+      // Primitives, functions and null - equal only as a NaN pair
+      if (typeof elemA !== TYPEOF_OBJECT || elemA === null) {
+        if (elemA !== elemA && elemB !== elemB) continue;
+        return false;
+      }
+
+      if (!entered) {
+        visited = enter(visited, valA, valB);
+        entered = true;
+      }
       if (!deepEqual(elemA, elemB, visited)) {
         return false;
       }
     }
-    if (i === len) return true;
 
     // Phase 2 - sparse-aware remainder, baseline per-element logic
     for (; i < len; i++) {
@@ -287,10 +411,18 @@ function deepEqualObjects(valA: any, valB: any, visited: Map<any, any> | null): 
       const elemA = valA[i];
       const elemB = valB[i];
 
-      if (elemA !== elemB && !deepEqual(elemA, elemB, visited)) {
-        return false;
+      if (elemA !== elemB) {
+        if (!entered && typeof elemA === TYPEOF_OBJECT && elemA !== null) {
+          visited = enter(visited, valA, valB);
+          entered = true;
+        }
+        if (!deepEqual(elemA, elemB, visited)) {
+          return false;
+        }
       }
     }
+
+    if (entered) leave(visited as Tracker);
     return true;
   }
 
@@ -475,58 +607,67 @@ function deepEqualObjects(valA: any, valB: any, visited: Map<any, any> | null): 
 }
 
 // Map - optimized
-function equalMaps(valA: any, valB: any, visited: Map<any, any> | null): boolean {
-  const mapA = valA as Map<any, any>;
-  const mapB = valB as Map<any, any>;
-
+function equalMaps(mapA: Map<any, any>, mapB: Map<any, any>, visited: Tracker | null): boolean {
   if (mapA.size !== mapB.size) return false;
 
   // Empty maps
   if (mapA.size === 0) return true;
 
-  // Allocate the visited map lazily on first use
-  if (visited === null) visited = new Map();
-  visited.set(valA, valB);
-  visited.set(valB, valA);
+  // The pair is tracked from the first entry that needs recursion
+  let entered = false;
+
+  // B keys already matched to an object key of A - each matches at most once
+  let used: Set<any> | null = null;
 
   // Optimized iteration
   for (const [key, valueA] of mapA) {
-    // Fast path for keys compared by identity (primitives and functions)
-    if (typeof key !== TYPEOF_OBJECT) {
+    // Fast path for keys compared by identity (primitives, functions, null)
+    if (typeof key !== TYPEOF_OBJECT || key === null) {
       if (!mapB.has(key)) return false;
       const valueB = mapB.get(key);
-      if (valueA !== valueB && !deepEqual(valueA, valueB, visited)) {
-        return false;
+      if (valueA !== valueB) {
+        if (!entered && typeof valueA === TYPEOF_OBJECT && valueA !== null) {
+          visited = enter(visited, mapA, mapB);
+          entered = true;
+        }
+        if (!deepEqual(valueA, valueB, visited)) return false;
       }
     } else {
-      // Complex key - need full search
+      // Object key - search B for an unmatched entry with an equal key and value
+      if (!entered) {
+        visited = enter(visited, mapA, mapB);
+        entered = true;
+      }
+      if (used === null) used = new Set();
+
+      const tracker = visited as Tracker;
       let found = false;
       for (const [keyB, valueB] of mapB) {
-        if (deepEqual(key, keyB, visited) && deepEqual(valueA, valueB, visited)) {
+        if (typeof keyB !== TYPEOF_OBJECT || keyB === null || used.has(keyB)) continue;
+
+        // A failed attempt leaves its pairs on the stack - drop them
+        const mark = tracker[TRACK_TOP];
+        if (deepEqual(key, keyB, tracker) && deepEqual(valueA, valueB, tracker)) {
+          used.add(keyB);
           found = true;
           break;
         }
+        truncate(tracker, mark);
       }
       if (!found) return false;
     }
   }
+
+  if (entered) leave(visited as Tracker);
   return true;
 }
 
 // Set - highly optimized
-function equalSets(valA: any, valB: any, visited: Map<any, any> | null): boolean {
-  const setA = valA as Set<any>;
-  const setB = valB as Set<any>;
-
+function equalSets(setA: Set<any>, setB: Set<any>, visited: Tracker | null): boolean {
   if (setA.size !== setB.size) return false;
 
   // Empty sets
   if (setA.size === 0) return true;
-
-  // Early visited check - allocate the map lazily on first use
-  if (visited === null) visited = new Map();
-  visited.set(valA, valB);
-  visited.set(valB, valA);
 
   // For equal sets, we can optimize by checking if all primitives exist first
   let hasObjects = false;
@@ -560,35 +701,32 @@ function equalSets(valA: any, valB: any, visited: Map<any, any> | null): boolean
     }
   }
 
-  // Match objects
+  // Match objects - each member of B matches at most once
+  const tracker = enter(visited, setA, setB);
   const used = new Uint8Array(objectsB.length);
-  for (const valA of objectsA) {
+  for (const memberA of objectsA) {
     let found = false;
     for (let j = 0; j < objectsB.length; j++) {
       if (!used[j]) {
-        // visited is always non-null here - the Set branch marks the pair
-        // (allocating on demand) before object matching begins
-        const newVisited = new Map(visited);
-        if (deepEqual(valA, objectsB[j], newVisited)) {
+        // A failed attempt leaves its pairs on the stack - drop them
+        const mark = tracker[TRACK_TOP];
+        if (deepEqual(memberA, objectsB[j], tracker)) {
           used[j] = 1;
           found = true;
           break;
         }
+        truncate(tracker, mark);
       }
     }
     if (!found) return false;
   }
 
+  leave(tracker);
   return true;
 }
 
 // Plain objects - highly optimized
-function equalPlainObjects(valA: any, valB: any, visited: Map<any, any> | null): boolean {
-  // Allocate the visited map lazily on first use
-  if (visited === null) visited = new Map();
-  visited.set(valA, valB);
-  visited.set(valB, valA);
-
+function equalPlainObjects(valA: any, valB: any, visited: Tracker | null): boolean {
   // Get keys efficiently
   const keysA = Object.keys(valA);
   const keysALen = keysA.length;
@@ -596,21 +734,9 @@ function equalPlainObjects(valA: any, valB: any, visited: Map<any, any> | null):
   // Quick length check
   if (keysALen !== Object.keys(valB).length) return false;
 
-  // Empty objects - check symbols
-  if (keysALen === 0) {
-    const symbolsA = Object.getOwnPropertySymbols(valA);
-    if (symbolsA.length !== Object.getOwnPropertySymbols(valB).length) {
-      return false;
-    }
-    // Check symbol properties
-    for (let i = 0; i < symbolsA.length; i++) {
-      const sym = symbolsA[i];
-      if (!(sym in valB) || !deepEqual(valA[sym], valB[sym], visited)) {
-        return false;
-      }
-    }
-    return true;
-  }
+  // The pair is tracked from the first property that needs recursion, so
+  // objects holding only primitives never touch the tracker
+  let entered = false;
 
   // Optimized property checking - read values first, defer the "in" probe
   for (let i = 0; i < keysALen; i++) {
@@ -625,6 +751,10 @@ function equalPlainObjects(valA: any, valB: any, visited: Map<any, any> | null):
       if (propTypeA === TYPEOF_OBJECT) {
         // An object can only equal another non-null object
         if (propA === null || propB === null || typeof propB !== TYPEOF_OBJECT) return false;
+        if (!entered) {
+          visited = enter(visited, valA, valB);
+          entered = true;
+        }
         if (!deepEqualObjects(propA, propB, visited)) return false;
       } else if (propTypeA === TYPEOF_NUMBER) {
         if (!(isNaN(propA) && isNaN(propB))) return false;
@@ -647,11 +777,20 @@ function equalPlainObjects(valA: any, valB: any, visited: Map<any, any> | null):
     // Check symbol properties
     for (let i = 0; i < symbolsA.length; i++) {
       const sym = symbolsA[i];
-      if (!(sym in valB) || !deepEqual(valA[sym], valB[sym], visited)) {
-        return false;
+      if (!(sym in valB)) return false;
+
+      const propA = valA[sym];
+      const propB = valB[sym];
+      if (propA !== propB) {
+        if (!entered && typeof propA === TYPEOF_OBJECT && propA !== null) {
+          visited = enter(visited, valA, valB);
+          entered = true;
+        }
+        if (!deepEqual(propA, propB, visited)) return false;
       }
     }
   }
 
+  if (entered) leave(visited as Tracker);
   return true;
 }
