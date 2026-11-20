@@ -1634,6 +1634,54 @@ describe('fastIsEqual', () => {
     });
   });
 
+  describe('Non-enumerable symbol keys', () => {
+    const hidden = Symbol('hidden');
+    const visible = Symbol('visible');
+    const other = Symbol('other');
+    const withHidden = (target: any, value: any) =>
+      Object.defineProperty(target, hidden, { value, enumerable: false });
+
+    it('should ignore a non-enumerable symbol key on the first object', () => {
+      expect(fastIsEqual(withHidden({ a: 1 }, 1), { a: 1 })).toBe(true);
+      expect(fastIsEqual(withHidden({}, 1), {})).toBe(true);
+      expect(fastIsEqual(withHidden({ a: 1 }, 1), { a: 2 })).toBe(false);
+    });
+
+    it('should ignore non-enumerable symbol values that differ', () => {
+      expect(fastIsEqual(withHidden({ a: 1 }, { x: 1 }), withHidden({ a: 1 }, { x: 2 }))).toBe(true);
+    });
+
+    it('should compare enumerable symbol keys next to non-enumerable ones', () => {
+      expect(fastIsEqual(withHidden({ [visible]: 1 }, 1), { [visible]: 1 })).toBe(true);
+      expect(fastIsEqual({ [visible]: 1 }, withHidden({ [visible]: 1 }, 1))).toBe(true);
+      expect(fastIsEqual(withHidden({ [visible]: 1 }, 1), { [visible]: 2 })).toBe(false);
+    });
+
+    it('should return false when a symbol key is enumerable on one side only', () => {
+      expect(fastIsEqual({ [hidden]: 1 }, withHidden({}, 1))).toBe(false);
+      expect(fastIsEqual({ [visible]: 1 }, {})).toBe(false);
+      expect(fastIsEqual({ a: 1, [visible]: 1 }, { a: 1 })).toBe(false);
+    });
+
+    it('should return false when the second object has extra enumerable symbol keys', () => {
+      expect(fastIsEqual({ [visible]: 1 }, { [visible]: 1, [other]: 2 })).toBe(false);
+      expect(fastIsEqual({ [visible]: 1 }, withHidden({ [visible]: 1, [other]: 2 }, 3))).toBe(false);
+      expect(fastIsEqual(withHidden({ [visible]: 1 }, 3), { [visible]: 1, [other]: 2 })).toBe(false);
+    });
+
+    it('should return false when enumerable symbol keys differ', () => {
+      expect(fastIsEqual({ [visible]: 1 }, { [other]: 1 })).toBe(false);
+      expect(fastIsEqual({ [visible]: 1, [other]: 2 }, { [visible]: 1, [other]: 3 })).toBe(false);
+      expect(fastIsEqual({ [visible]: 1, [other]: 2 }, { [other]: 2, [visible]: 1 })).toBe(true);
+    });
+
+    it('should not treat an inherited symbol key as an own one', () => {
+      const proto = { [visible]: 1 };
+      const inheriting = Object.create(proto);
+      expect(fastIsEqual(Object.assign(Object.create(proto), { [visible]: 1 }), inheriting)).toBe(false);
+    });
+  });
+
   describe('Symbol-keyed properties holding objects', () => {
     const sym = Symbol('meta');
 
