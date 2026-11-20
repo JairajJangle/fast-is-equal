@@ -10,6 +10,9 @@ const TYPEOF_BIGINT = 'bigint';
 // Inline NaN check for maximum speed
 const isNaN = Number.isNaN;
 
+// Own-and-enumerable test for symbol keys
+const isEnumerable = Object.prototype.propertyIsEnumerable;
+
 // Cache for constructor checks
 const dateConstructor = Date;
 const regExpConstructor = RegExp;
@@ -771,13 +774,17 @@ function equalPlainObjects(valA: any, valB: any, visited: Tracker | null): boole
   // Check for symbols only if present
   const symbolsA = Object.getOwnPropertySymbols(valA);
   if (symbolsA.length > 0) {
-    if (symbolsA.length !== Object.getOwnPropertySymbols(valB).length) {
-      return false;
-    }
-    // Check symbol properties
+    const symbolsB = Object.getOwnPropertySymbols(valB);
+
+    // Only enumerable symbol keys count, like string keys
+    let enumerableA = 0;
     for (let i = 0; i < symbolsA.length; i++) {
       const sym = symbolsA[i];
-      if (!(sym in valB)) return false;
+      if (!isEnumerable.call(valA, sym)) continue;
+      enumerableA++;
+
+      // B must own the key as an enumerable property too
+      if (!isEnumerable.call(valB, sym)) return false;
 
       const propA = valA[sym];
       const propB = valB[sym];
@@ -788,6 +795,16 @@ function equalPlainObjects(valA: any, valB: any, visited: Tracker | null): boole
         }
         if (!deepEqual(propA, propB, visited)) return false;
       }
+    }
+
+    // Every enumerable symbol key of A is on B. B must not have others:
+    // count B's, skipping the count when the totals already agree.
+    if (symbolsB.length !== enumerableA) {
+      let enumerableB = 0;
+      for (let i = 0; i < symbolsB.length; i++) {
+        if (isEnumerable.call(valB, symbolsB[i])) enumerableB++;
+      }
+      if (enumerableB !== enumerableA) return false;
     }
   }
 
