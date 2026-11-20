@@ -1,276 +1,279 @@
 Performance Comparison: fastIsEqual vs Lodash isEqual
-Iterations per test case: 1,000,000
+Per test case: best of 5 rounds of 200,000 calls per library
+Within ±3% counts as a tie
 ════════════════════════════════════════════════════════════════════════════════
 Test 1: Numbers
-  fastIsEqual:    0.000003 ms
-  Lodash isEqual: 0.000005 ms
-  ✅ Speed: 1.61x faster
+  fastIsEqual:    0.000004 ms
+  Lodash isEqual: 0.000004 ms
+  ➡️  Speed: 1.12x faster
 ────────────────────────────────────────────────────────────────────────────────
 Test 2: Strings
   fastIsEqual:    0.000006 ms
   Lodash isEqual: 0.000005 ms
-  ❌ Speed: 0.85x slower
+  ⚠️  Speed: 0.91x slower
 ────────────────────────────────────────────────────────────────────────────────
 Test 3: Booleans
   fastIsEqual:    0.000005 ms
   Lodash isEqual: 0.000005 ms
-  ➡️  Speed: 1.05x faster
+  ⚠️  Speed: 0.96x slower
 ────────────────────────────────────────────────────────────────────────────────
 Test 4: NaN
   fastIsEqual:    0.000006 ms
   Lodash isEqual: 0.000007 ms
-  ➡️  Speed: 1.16x faster
+  ➡️  Speed: 1.18x faster
 ────────────────────────────────────────────────────────────────────────────────
 Test 5: Large Numbers
-  fastIsEqual:    0.000005 ms
+  fastIsEqual:    0.000006 ms
   Lodash isEqual: 0.000006 ms
-  ➡️  Speed: 1.08x faster
+  🟰 Speed: 1.00x (tie)
 ────────────────────────────────────────────────────────────────────────────────
 Test 6: Negative Zero
-  fastIsEqual:    0.000005 ms
+  fastIsEqual:    0.000006 ms
   Lodash isEqual: 0.000006 ms
-  ➡️  Speed: 1.10x faster
+  🟰 Speed: 1.00x (tie)
 ────────────────────────────────────────────────────────────────────────────────
 Test 7: Empty Objects
-  fastIsEqual:    0.000097 ms
-  Lodash isEqual: 0.000171 ms
-  ✅ Speed: 1.76x faster
+  fastIsEqual:    0.000038 ms
+  Lodash isEqual: 0.000162 ms
+  🚀 Speed: 4.30x faster
 ────────────────────────────────────────────────────────────────────────────────
 Test 8: Single Property Object
-  fastIsEqual:    0.000077 ms
-  Lodash isEqual: 0.000210 ms
-  🚀 Speed: 2.74x faster
+  fastIsEqual:    0.000043 ms
+  Lodash isEqual: 0.000202 ms
+  🚀 Speed: 4.69x faster
 ────────────────────────────────────────────────────────────────────────────────
 Test 9: Simple Object (equal)
-  fastIsEqual:    0.000099 ms
-  Lodash isEqual: 0.000237 ms
-  🚀 Speed: 2.41x faster
+  fastIsEqual:    0.000065 ms
+  Lodash isEqual: 0.000235 ms
+  🚀 Speed: 3.60x faster
 ────────────────────────────────────────────────────────────────────────────────
 Test 10: Simple Object (unequal)
-  fastIsEqual:    0.000079 ms
+  fastIsEqual:    0.000046 ms
   Lodash isEqual: 0.000238 ms
-  🚀 Speed: 3.02x faster
+  🚀 Speed: 5.16x faster
 ────────────────────────────────────────────────────────────────────────────────
 Test 11: Object with null prototype
-  fastIsEqual:    0.000188 ms
-  Lodash isEqual: 0.000273 ms
-  ✅ Speed: 1.45x faster
+  fastIsEqual:    0.000099 ms
+  Lodash isEqual: 0.000264 ms
+  🚀 Speed: 2.67x faster
 ────────────────────────────────────────────────────────────────────────────────
 Test 12: Nested Object (equal)
-  fastIsEqual:    0.000333 ms
-  Lodash isEqual: 0.000765 ms
-  🚀 Speed: 2.30x faster
+  fastIsEqual:    0.000188 ms
+  Lodash isEqual: 0.000745 ms
+  🚀 Speed: 3.96x faster
 ────────────────────────────────────────────────────────────────────────────────
 Test 13: Nested Object (unequal)
-  fastIsEqual:    0.000266 ms
-  Lodash isEqual: 0.000728 ms
-  🚀 Speed: 2.74x faster
+  fastIsEqual:    0.000129 ms
+  Lodash isEqual: 0.000717 ms
+  🚀 Speed: 5.57x faster
 ────────────────────────────────────────────────────────────────────────────────
 Test 14: Deeply Nested (5 levels)
-  fastIsEqual:    0.000639 ms
-  Lodash isEqual: 0.001303 ms
-  🚀 Speed: 2.04x faster
+  fastIsEqual:    0.000361 ms
+  Lodash isEqual: 0.001285 ms
+  🚀 Speed: 3.55x faster
 ────────────────────────────────────────────────────────────────────────────────
 Test 15: Empty Arrays
   fastIsEqual:    0.000020 ms
-  Lodash isEqual: 0.000074 ms
-  🚀 Speed: 3.61x faster
+  Lodash isEqual: 0.000064 ms
+  🚀 Speed: 3.14x faster
 ────────────────────────────────────────────────────────────────────────────────
 Test 16: Single Element Array
-  fastIsEqual:    0.000028 ms
-  Lodash isEqual: 0.000085 ms
-  🚀 Speed: 3.05x faster
+  fastIsEqual:    0.000022 ms
+  Lodash isEqual: 0.000072 ms
+  🚀 Speed: 3.32x faster
 ────────────────────────────────────────────────────────────────────────────────
 Test 17: Array of Primitives (equal)
-  fastIsEqual:    0.000021 ms
-  Lodash isEqual: 0.000085 ms
-  🚀 Speed: 3.95x faster
+  fastIsEqual:    0.000022 ms
+  Lodash isEqual: 0.000080 ms
+  🚀 Speed: 3.59x faster
 ────────────────────────────────────────────────────────────────────────────────
 Test 18: Array of Primitives (unequal)
   fastIsEqual:    0.000022 ms
-  Lodash isEqual: 0.000091 ms
-  🚀 Speed: 4.06x faster
+  Lodash isEqual: 0.000084 ms
+  🚀 Speed: 3.80x faster
 ────────────────────────────────────────────────────────────────────────────────
 Test 19: Large Array of Numbers (100)
-  fastIsEqual:    0.000178 ms
+  fastIsEqual:    0.000094 ms
   Lodash isEqual: 0.000429 ms
-  🚀 Speed: 2.40x faster
+  🚀 Speed: 4.56x faster
 ────────────────────────────────────────────────────────────────────────────────
 Test 20: Array of Strings
   fastIsEqual:    0.000033 ms
-  Lodash isEqual: 0.000095 ms
-  🚀 Speed: 2.84x faster
+  Lodash isEqual: 0.000087 ms
+  🚀 Speed: 2.65x faster
 ────────────────────────────────────────────────────────────────────────────────
 Test 21: Mixed Type Array
-  fastIsEqual:    0.000033 ms
-  Lodash isEqual: 0.000092 ms
-  🚀 Speed: 2.83x faster
+  fastIsEqual:    0.000034 ms
+  Lodash isEqual: 0.000087 ms
+  🚀 Speed: 2.59x faster
 ────────────────────────────────────────────────────────────────────────────────
 Test 22: Sparse Array
   fastIsEqual:    0.000034 ms
-  Lodash isEqual: 0.000101 ms
-  🚀 Speed: 2.95x faster
+  Lodash isEqual: 0.000094 ms
+  🚀 Speed: 2.79x faster
 ────────────────────────────────────────────────────────────────────────────────
 Test 23: Array of Objects (equal)
-  fastIsEqual:    0.000215 ms
-  Lodash isEqual: 0.000588 ms
-  🚀 Speed: 2.73x faster
+  fastIsEqual:    0.000144 ms
+  Lodash isEqual: 0.000587 ms
+  🚀 Speed: 4.08x faster
 ────────────────────────────────────────────────────────────────────────────────
 Test 24: Uint8Array
-  fastIsEqual:    0.000038 ms
-  Lodash isEqual: 0.000654 ms
-  🚀 Speed: 17.08x faster
+  fastIsEqual:    0.000036 ms
+  Lodash isEqual: 0.000590 ms
+  🚀 Speed: 16.41x faster
 ────────────────────────────────────────────────────────────────────────────────
 Test 25: Float32Array
-  fastIsEqual:    0.000041 ms
-  Lodash isEqual: 0.000652 ms
-  🚀 Speed: 15.72x faster
+  fastIsEqual:    0.000039 ms
+  Lodash isEqual: 0.000584 ms
+  🚀 Speed: 15.06x faster
 ────────────────────────────────────────────────────────────────────────────────
 Test 26: Large TypedArray (1000)
-  fastIsEqual:    0.000917 ms
-  Lodash isEqual: 0.011574 ms
-  🚀 Speed: 12.62x faster
+  fastIsEqual:    0.000926 ms
+  Lodash isEqual: 0.011739 ms
+  🚀 Speed: 12.68x faster
 ────────────────────────────────────────────────────────────────────────────────
 Test 27: ArrayBuffer (small)
-  fastIsEqual:    0.000068 ms
-  Lodash isEqual: 0.001242 ms
-  🚀 Speed: 18.40x faster
+  fastIsEqual:    0.000063 ms
+  Lodash isEqual: 0.001116 ms
+  🚀 Speed: 17.59x faster
 ────────────────────────────────────────────────────────────────────────────────
 Test 28: Dates (equal)
   fastIsEqual:    0.000020 ms
-  Lodash isEqual: 0.000192 ms
-  🚀 Speed: 9.43x faster
+  Lodash isEqual: 0.000184 ms
+  🚀 Speed: 9.42x faster
 ────────────────────────────────────────────────────────────────────────────────
 Test 29: RegExp (equal)
-  fastIsEqual:    0.000042 ms
-  Lodash isEqual: 0.000446 ms
-  🚀 Speed: 10.69x faster
+  fastIsEqual:    0.000041 ms
+  Lodash isEqual: 0.000384 ms
+  🚀 Speed: 9.28x faster
 ────────────────────────────────────────────────────────────────────────────────
 Test 30: RegExp (unequal flags)
   fastIsEqual:    0.000042 ms
-  Lodash isEqual: 0.000460 ms
-  🚀 Speed: 10.95x faster
+  Lodash isEqual: 0.000398 ms
+  🚀 Speed: 9.38x faster
 ────────────────────────────────────────────────────────────────────────────────
 Test 31: Circular Reference
-  fastIsEqual:    0.000114 ms
+  fastIsEqual:    0.000080 ms
   Lodash isEqual: 0.000443 ms
-  🚀 Speed: 3.87x faster
+  🚀 Speed: 5.51x faster
 ────────────────────────────────────────────────────────────────────────────────
 Test 32: Mutual Circular
-  fastIsEqual:    0.000214 ms
-  Lodash isEqual: 0.000745 ms
-  🚀 Speed: 3.48x faster
+  fastIsEqual:    0.000161 ms
+  Lodash isEqual: 0.000739 ms
+  🚀 Speed: 4.59x faster
 ────────────────────────────────────────────────────────────────────────────────
 Test 33: Empty Map
-  fastIsEqual:    0.000037 ms
-  Lodash isEqual: 0.000661 ms
-  🚀 Speed: 18.04x faster
+  fastIsEqual:    0.000034 ms
+  Lodash isEqual: 0.000614 ms
+  🚀 Speed: 18.21x faster
 ────────────────────────────────────────────────────────────────────────────────
 Test 34: Map with primitives
-  fastIsEqual:    0.000081 ms
-  Lodash isEqual: 0.001405 ms
-  🚀 Speed: 17.27x faster
+  fastIsEqual:    0.000052 ms
+  Lodash isEqual: 0.001359 ms
+  🚀 Speed: 26.18x faster
 ────────────────────────────────────────────────────────────────────────────────
 Test 35: Map (unequal)
-  fastIsEqual:    0.000080 ms
-  Lodash isEqual: 0.001316 ms
-  🚀 Speed: 16.41x faster
+  fastIsEqual:    0.000050 ms
+  Lodash isEqual: 0.001277 ms
+  🚀 Speed: 25.76x faster
 ────────────────────────────────────────────────────────────────────────────────
 Test 36: Large Map (50 entries)
-  fastIsEqual:    0.000912 ms
-  Lodash isEqual: 0.025252 ms
-  🚀 Speed: 27.70x faster
+  fastIsEqual:    0.000886 ms
+  Lodash isEqual: 0.025579 ms
+  🚀 Speed: 28.87x faster
 ────────────────────────────────────────────────────────────────────────────────
 Test 37: Empty Set
-  fastIsEqual:    0.000037 ms
-  Lodash isEqual: 0.000668 ms
-  🚀 Speed: 17.96x faster
+  fastIsEqual:    0.000034 ms
+  Lodash isEqual: 0.000620 ms
+  🚀 Speed: 18.17x faster
 ────────────────────────────────────────────────────────────────────────────────
 Test 38: Set of numbers
-  fastIsEqual:    0.000073 ms
-  Lodash isEqual: 0.000917 ms
-  🚀 Speed: 12.50x faster
+  fastIsEqual:    0.000045 ms
+  Lodash isEqual: 0.000876 ms
+  🚀 Speed: 19.36x faster
 ────────────────────────────────────────────────────────────────────────────────
 Test 39: Set (unequal)
-  fastIsEqual:    0.000072 ms
-  Lodash isEqual: 0.000909 ms
-  🚀 Speed: 12.66x faster
+  fastIsEqual:    0.000044 ms
+  Lodash isEqual: 0.000869 ms
+  🚀 Speed: 19.62x faster
 ────────────────────────────────────────────────────────────────────────────────
 Test 40: Set of strings
-  fastIsEqual:    0.000081 ms
-  Lodash isEqual: 0.000916 ms
-  🚀 Speed: 11.34x faster
+  fastIsEqual:    0.000054 ms
+  Lodash isEqual: 0.000868 ms
+  🚀 Speed: 16.14x faster
 ────────────────────────────────────────────────────────────────────────────────
 Test 41: Large Set (100 items)
-  fastIsEqual:    0.000585 ms
-  Lodash isEqual: 0.037756 ms
-  🚀 Speed: 64.53x faster
+  fastIsEqual:    0.000532 ms
+  Lodash isEqual: 0.038467 ms
+  🚀 Speed: 72.28x faster
 ────────────────────────────────────────────────────────────────────────────────
 Test 42: Object vs Array
   fastIsEqual:    0.000009 ms
-  Lodash isEqual: 0.000032 ms
-  🚀 Speed: 3.57x faster
+  Lodash isEqual: 0.000034 ms
+  🚀 Speed: 3.70x faster
 ────────────────────────────────────────────────────────────────────────────────
 Test 43: Map vs Set
   fastIsEqual:    0.000018 ms
-  Lodash isEqual: 0.000469 ms
-  🚀 Speed: 26.45x faster
+  Lodash isEqual: 0.000435 ms
+  🚀 Speed: 24.18x faster
 ────────────────────────────────────────────────────────────────────────────────
 Test 44: String vs Number
   fastIsEqual:    0.000006 ms
   Lodash isEqual: 0.000006 ms
-  ➡️  Speed: 1.11x faster
+  ➡️  Speed: 1.06x faster
 ────────────────────────────────────────────────────────────────────────────────
 Test 45: Boolean vs Number
   fastIsEqual:    0.000006 ms
   Lodash isEqual: 0.000006 ms
-  ➡️  Speed: 1.08x faster
+  ➡️  Speed: 1.11x faster
 ────────────────────────────────────────────────────────────────────────────────
 Test 46: User Object
-  fastIsEqual:    0.000150 ms
-  Lodash isEqual: 0.000327 ms
-  🚀 Speed: 2.18x faster
+  fastIsEqual:    0.000112 ms
+  Lodash isEqual: 0.000321 ms
+  🚀 Speed: 2.86x faster
 ────────────────────────────────────────────────────────────────────────────────
 Test 47: API Response
-  fastIsEqual:    0.000592 ms
-  Lodash isEqual: 0.001285 ms
-  🚀 Speed: 2.17x faster
+  fastIsEqual:    0.000367 ms
+  Lodash isEqual: 0.001264 ms
+  🚀 Speed: 3.45x faster
 ────────────────────────────────────────────────────────────────────────────────
 Test 48: Config Object
-  fastIsEqual:    0.000205 ms
-  Lodash isEqual: 0.000446 ms
-  🚀 Speed: 2.17x faster
+  fastIsEqual:    0.000150 ms
+  Lodash isEqual: 0.000449 ms
+  🚀 Speed: 2.99x faster
 ────────────────────────────────────────────────────────────────────────────────
 Test 49: State Object
-  fastIsEqual:    0.000365 ms
-  Lodash isEqual: 0.000727 ms
-  ✅ Speed: 1.99x faster
+  fastIsEqual:    0.000237 ms
+  Lodash isEqual: 0.000723 ms
+  🚀 Speed: 3.05x faster
 ────────────────────────────────────────────────────────────────────────────────
 ════════════════════════════════════════════════════════════════════════════════
 SUMMARY
 ════════════════════════════════════════════════════════════════════════════════
 Overall Performance:
-  Average fastIsEqual time:    0.000147 ms
-  Average Lodash isEqual time: 0.001941 ms
-  fastIsEqual is 13.21x faster on average
+  Average fastIsEqual time:    0.000112 ms
+  Average Lodash isEqual time: 0.001947 ms
+  fastIsEqual is 17.44x faster on average
 
 Win Rate:
-  fastIsEqual wins: 48/49 (98.0%)
-  Lodash wins:      1/49 (2.0%)
+  fastIsEqual wins: 45/49 (91.8%)
+  Ties (±3%):     2/49 (4.1%)
+  Lodash wins:      2/49 (4.1%)
 
 🏆 Top 10 Best Performance Gains:
-  1. Large Set (100 items): 64.53x faster
-  2. Large Map (50 entries): 27.70x faster
-  3. Map vs Set: 26.45x faster
-  4. ArrayBuffer (small): 18.40x faster
-  5. Empty Map: 18.04x faster
-  6. Empty Set: 17.96x faster
-  7. Map with primitives: 17.27x faster
-  8. Uint8Array: 17.08x faster
-  9. Map (unequal): 16.41x faster
-  10. Float32Array: 15.72x faster
+  1. Large Set (100 items): 72.28x faster
+  2. Large Map (50 entries): 28.87x faster
+  3. Map with primitives: 26.18x faster
+  4. Map (unequal): 25.76x faster
+  5. Map vs Set: 24.18x faster
+  6. Set (unequal): 19.62x faster
+  7. Set of numbers: 19.36x faster
+  8. Empty Map: 18.21x faster
+  9. Empty Set: 18.17x faster
+  10. ArrayBuffer (small): 17.59x faster
 
 ⚠️  Cases where Lodash performed better:
-  1. Strings: 0.85x
+  1. Strings: 0.91x
+  2. Booleans: 0.96x
 
 ════════════════════════════════════════════════════════════════════════════════

@@ -7,10 +7,10 @@
 
 ## Why fast-is-equal?
 
-- 🚀 **Lightning Speed**: Up to **64.53x faster** than Lodash's `isEqual` (average **13.21x faster** across 49 test cases).
+- 🚀 **Lightning Speed**: Up to **72.28x faster** than Lodash's `isEqual` (average **17.44x faster** across 49 test cases).
 - 🪶 **Lightweight**: Dependency-free, minimal footprint.
 - 🔄 **Versatile**: Handles primitives, objects, arrays, Maps, Sets, typed arrays, circular references, and more.
-- 🏆 **Proven**: Outperforms Lodash in **98%** of benchmark cases.
+- 🏆 **Proven**: Faster than Lodash in **45 of 49** benchmark cases, tied in 2, and behind only on two 5-nanosecond primitive comparisons.
 
 ## Installation
 
@@ -36,40 +36,83 @@ console.log(fastIsEqual({ a: 1 }, { a: 1 })); // true
 console.log(fastIsEqual([1, 2], [1, 3])); // false
 ```
 
+## Equality semantics
+
+Two values are equal when they are the same kind of value and hold the same content. Values of different
+types, or objects with different constructors, are never equal.
+
+| Kind | Equal when |
+| --- | --- |
+| Primitives | They are strictly equal. `NaN` equals `NaN`, and `0` equals `-0`. |
+| Plain objects, class instances | Same constructor, same own enumerable string and symbol keys, deep-equal values. Key order does not matter. |
+| Arrays | Same length and deep-equal elements. A hole is not equal to `undefined`. |
+| `Date` | Same time value. Two invalid dates are equal. |
+| `RegExp` | Same source and flags. |
+| `Map` | Same size and deep-equal entries, in any order. Object keys are matched by deep equality. |
+| `Set` | Same size and deep-equal members, in any order. |
+| `ArrayBuffer`, typed arrays | Same type, same length, same contents. `NaN` elements are equal to each other. |
+| `DataView` | Same byte length, byte offset and bytes. |
+| Boxed primitives (`new Number(1)`) | Same wrapped value. A boxed value never equals its primitive. |
+| Errors | Same constructor, `name` and `message`. |
+| Subclasses of `Date`, `RegExp`, `Map`, `Set`, `Error` | Same subclass, then the rule of the built-in they extend. |
+| Functions, `Promise`, `WeakMap`, `WeakSet` | They are the same reference. |
+
+Shared references and cycles are compared by structure:
+
+- An object used in several places equals separate copies of it, so `{ a: x, b: x }` equals its JSON clone.
+- Circular structures are equal when their cycles have the same shape. An object that points to itself is
+  not equal to a loop of two objects, even though reading either one gives the same values forever.
+
+### Known limits
+
+These cases are left as they are because handling them would slow down every comparison:
+
+- A symbol key that exists only on the second argument is not detected: `fastIsEqual({ a: 1 }, { a: 1, [sym]: 2 })`
+  returns `true`, while the reverse order returns `false`.
+- An own property is not told apart from an inherited one with the identical value. This needs two objects
+  that share a prototype holding that value and that differ in another key.
+- Objects are compared by their own enumerable properties, so two instances whose state lives elsewhere
+  (`URL`, classes that use only `#private` fields) are equal when they have no such properties.
+- A plain object with an own `constructor` property set to a built-in constructor, such as
+  `{ constructor: Date }`, is not supported.
+- `{}` and `Object.create(null)` are not equal, because their constructors differ.
+- Extra own properties on arrays, dates, regular expressions and boxed primitives are ignored.
+
 ## Performance Benchmarks
 
-`fast-is-equal` was tested against Lodash's `isEqual` across **49 diverse test cases** with **1,000,000 iterations each**. The results speak for themselves:
+`fast-is-equal` was tested against Lodash's `isEqual` across **49 diverse test cases**. Each case runs 5 rounds of 200,000 calls per library, alternating which goes first, and keeps each library's fastest round. Results within ±3% count as a tie.
 
 ### Key Highlights
 
-- **Average Speed**: `fastIsEqual` is **13.21x faster** (0.000147 ms vs. 0.001941 ms).
-- **Win Rate**: Outperforms Lodash in **48/49 cases (98.0%)**.
-- **Peak Performance**: Up to **64.53x faster** for large Sets.
+- **Average Speed**: `fastIsEqual` is **17.44x faster** (0.000112 ms vs. 0.001947 ms).
+- **Win Rate**: Faster in **45/49 cases**, tied in 2, slower in 2.
+- **Peak Performance**: Up to **72.28x faster** for large Sets (100 items).
 
 ### Top 10 Performance Gains
 
 | Test Case               | fastIsEqual (ms) | Lodash isEqual (ms) | Speed Boost  |
 | ----------------------- | ---------------- | ------------------- | ------------ |
-| Large Set (100 items)   | 0.000585         | 0.037756            | **64.53x** 🚀 |
-| Large Map (50 entries)  | 0.000912         | 0.025252            | **27.70x** 🚀 |
-| Map vs Set              | 0.000018         | 0.000469            | **26.45x** 🚀 |
-| ArrayBuffer (small)     | 0.000068         | 0.001242            | **18.40x** 🚀 |
-| Empty Map               | 0.000037         | 0.000661            | **18.04x** 🚀 |
-| Empty Set               | 0.000037         | 0.000668            | **17.96x** 🚀 |
-| Map with primitives     | 0.000081         | 0.001405            | **17.27x** 🚀 |
-| Uint8Array              | 0.000038         | 0.000654            | **17.08x** 🚀 |
-| Map (unequal)           | 0.000080         | 0.001316            | **16.41x** 🚀 |
-| Float32Array            | 0.000041         | 0.000652            | **15.72x** 🚀 |
+| Large Set (100 items)   | 0.000532         | 0.038467            | **72.28x** 🚀 |
+| Large Map (50 entries)  | 0.000886         | 0.025579            | **28.87x** 🚀 |
+| Map with primitives     | 0.000052         | 0.001359            | **26.18x** 🚀 |
+| Map (unequal)           | 0.000050         | 0.001277            | **25.76x** 🚀 |
+| Map vs Set              | 0.000018         | 0.000435            | **24.18x** 🚀 |
+| Set (unequal)           | 0.000044         | 0.000869            | **19.62x** 🚀 |
+| Set of numbers          | 0.000045         | 0.000876            | **19.36x** 🚀 |
+| Empty Map               | 0.000034         | 0.000614            | **18.21x** 🚀 |
+| Empty Set               | 0.000034         | 0.000620            | **18.17x** 🚀 |
+| ArrayBuffer (small)     | 0.000063         | 0.001116            | **17.59x** 🚀 |
 
 ### Performance Across Categories
 
-- **Primitives**: Competitive performance with smart optimizations for edge cases like NaN
-- **Objects**: 1.45x–3.02x faster, with best gains on simple and nested structures
-- **Arrays**: 2.40x–4.06x faster, excelling at primitive arrays and sparse arrays
-- **TypedArrays**: 12.62x–17.08x faster, dramatically outperforming on all variants
-- **Special Objects**: 9.43x–10.95x faster for Dates and RegExp
-- **Collections**: 11.34x–64.53x faster for Maps and Sets, with exceptional gains on large collections
-- **Circular References**: 3.48x–3.87x faster with optimized cycle detection
+- **Primitives**: On par with Lodash; both return within a few nanoseconds
+- **Objects**: 2.67x to 5.57x faster, with best gains on simple and nested structures
+- **Arrays**: 2.59x to 4.56x faster, excelling at primitive arrays and arrays of objects
+- **TypedArrays**: 12.68x to 16.41x faster on all variants
+- **Special Objects**: 9.28x to 9.42x faster for Dates and RegExp
+- **Collections**: 16.14x to 72.28x faster for Maps and Sets, with the largest gains on large collections
+- **Circular References**: 4.59x to 5.51x faster
+- **Real-world shapes** (user, API response, config, state objects): 2.86x to 3.45x faster
 
 ### Detailed Benchmark Results
 
@@ -77,11 +120,14 @@ Run `yarn benchmark` or `npm run benchmark` to test locally. Full results availa
 
 #### Edge Cases Where Lodash Wins
 
-Only 1 case where Lodash marginally outperforms:
+- Strings: 0.91x
+- Booleans: 0.96x
 
-- Strings: 0.85x slower
+Both are single comparisons of about 5 nanoseconds, where the call itself dominates, with negligible real-world impact. Large Numbers and Negative Zero are ties.
 
-This is a ~5-nanosecond comparison at the benchmark's measurement resolution, with negligible real-world impact.
+### Comparing Two Versions of This Library
+
+`yarn benchmark:compare` measures the working tree against the version on `main`, both loaded into the same process, and fails if any case is slower. The latest run is in [benchmarks/before-after.txt](benchmarks/before-after.txt).
 
 ## Features
 
