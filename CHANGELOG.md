@@ -1,3 +1,34 @@
+## [1.4.0](https://github.com/JairajJangle/fast-is-equal/compare/v1.3.3...v1.4.0) (2026-11-20)
+
+### Bug Fixes
+
+* compare boxed primitives, errors, subclasses and nested functions ([2948b5e](https://github.com/JairajJangle/fast-is-equal/commit/2948b5e3d77533970e033477aa6536ce22dce172)), closes [#37](https://github.com/JairajJangle/fast-is-equal/issues/37)
+* compare invalid dates and NaN typed array elements by value ([308878b](https://github.com/JairajJangle/fast-is-equal/commit/308878ba3f37d5d2ba31900869210edd077de4b4))
+* ignore non-enumerable symbol keys ([8328d2e](https://github.com/JairajJangle/fast-is-equal/commit/8328d2e47bf397299df78bd45b4f714a513675a5))
+* track cycles with an in-progress stack so shared references compare equal ([913f656](https://github.com/JairajJangle/fast-is-equal/commit/913f656c44118eba5734880b22173a54e2bf0c9f))
+
+### Performance Improvements
+
+* reuse the last proven-equal pair for shared references ([2d91aec](https://github.com/JairajJangle/fast-is-equal/commit/2d91aeca9f2d956c7440735dc0ea65894dcf9c6a))
+
+### Documentation
+
+* **readme:** document equality semantics and refresh benchmarks ([6ac73b3](https://github.com/JairajJangle/fast-is-equal/commit/6ac73b3a80b2144c17442a538116cf3a9b5fd3f0))
+
+### Miscellaneous Chores
+
+* **benchmark:** add before/after harness and report ties against lodash ([ffc4bd2](https://github.com/JairajJangle/fast-is-equal/commit/ffc4bd2dca90b74ffdff727bccd8e7b10c51459d))
+* **deps:** patch dependabot security alerts via lockfile refresh ([792ff74](https://github.com/JairajJangle/fast-is-equal/commit/792ff747dd82da95895348b0b365e4e56daf7076))
+* **deps:** patch fast-uri, body-parser and launch-editor advisories ([70fe24b](https://github.com/JairajJangle/fast-is-equal/commit/70fe24bcaf9a258682f8b0e05cc6631d4bfc9db6))
+
+### Continuous Integration
+
+* **release:** list every commit type in release notes ([92d18e0](https://github.com/JairajJangle/fast-is-equal/commit/92d18e0dc6ebefeff786ad3889f62d96ddb3dd3c))
+
+### Tests
+
+* add randomized differential tests ([9dd9cc3](https://github.com/JairajJangle/fast-is-equal/commit/9dd9cc3c7d798e5fd8844c71ba4092585ebdc402))
+
 ## [1.3.3](https://github.com/JairajJangle/fast-is-equal/compare/v1.3.2...v1.3.3) (2026-09-06)
 
 
