@@ -1591,6 +1591,45 @@ describe('fastIsEqual', () => {
       expect(fastIsEqual(build(false), build(true))).toBe(true);
     });
 
+    it('should equate two structures that reuse objects in the same places', () => {
+      const build = () => {
+        const leaf = { theme: 'dark', lang: 'en' };
+        return { a: leaf, b: leaf, c: { d: leaf, e: leaf }, list: [leaf, leaf, leaf] };
+      };
+      expect(fastIsEqual(build(), build())).toBe(true);
+      const changed = build();
+      changed.c = { d: changed.a, e: { theme: 'dark', lang: 'fr' } };
+      expect(fastIsEqual(build(), changed)).toBe(false);
+      expect(fastIsEqual(changed, build())).toBe(false);
+    });
+
+    it('should not reuse an equality result from an earlier call', () => {
+      const leafA = { v: 1 };
+      const leafB = { v: 1 };
+      const a = { x: leafA, y: leafA };
+      const b = { x: leafB, y: leafB };
+      expect(fastIsEqual(a, b)).toBe(true);
+      leafB.v = 2;
+      expect(fastIsEqual(a, b)).toBe(false);
+      expect(fastIsEqual([leafA, leafA], [leafB, leafB])).toBe(false);
+      leafB.v = 1;
+      expect(fastIsEqual([leafA, leafA], [leafB, leafB])).toBe(true);
+    });
+
+    it('should compare shared references inside cyclic structures', () => {
+      const build = (tail: number) => {
+        const leaf = { k: tail };
+        const root: any = { a: leaf, b: leaf };
+        root.self = root;
+        root.list = [leaf, root, leaf];
+        return root;
+      };
+      expect(fastIsEqual(build(1), build(1))).toBe(true);
+      expect(fastIsEqual(build(1), build(2))).toBe(false);
+      expect(fastIsEqual(wrap(build(1), 30), wrap(build(1), 30))).toBe(true);
+      expect(fastIsEqual(wrap(build(1), 30), wrap(build(2), 30))).toBe(false);
+    });
+
     it('should compare deep linear chains', () => {
       const chain = (depth: number) => {
         let node: any = { v: 0 };
